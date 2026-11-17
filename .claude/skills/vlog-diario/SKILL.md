@@ -10,6 +10,16 @@ a un álbum compartido de Google Photos. El enlace del álbum está en la variab
 `VLOG_ALBUM` (configurada en el entorno privado "Tailandia video blog"; si falta, pedírselo al usuario). Quiere un video vertical por día. **Solo usa el celular**: el
 resultado se entrega en una página privada (Artifact) con un botón para guardarlo en el teléfono.
 
+## Dos estilos de edición (preguntar cuál si el usuario no lo dice)
+
+| Estilo | Cuándo | Motor | Guía |
+|---|---|---|---|
+| **1 · Clásico** (vertical 9:16) | "estilo 1", "clásico", "como el día 1", Reels/TikTok | `scripts/vlog.py` | sección 3 de este archivo |
+| **2 · Casey** (horizontal 16:9) | "estilo 2", "estilo Casey", "como Casey Neistat", YouTube | `scripts/casey.py` | `ESTILO_CASEY.md` |
+
+Los pasos 0, 1, 2, 4, 5 y 6 son iguales para los dos. Se pueden hacer los dos estilos del mismo día
+(el material, las transcripciones y la caché se comparten).
+
 ## 0. Preparar la sesión (1 minuto)
 
 ```bash
@@ -50,6 +60,8 @@ python3 $K/strips.py $VLOG_WS $VLOG_WS/sheet <videos y fotos>             # hoja
 
 - Leer las hojas con Read para entender cada clip: orientación (si algo sale de costado o al revés,
   usar `rot='ccw'|'cw'|'180'`), qué se ve, cuándo hay caras, qué es "artístico".
+- La transcripción no es determinística: si un clip importante sale con frases faltantes o raras, volver a
+  correrlo (borrar su `transcripts/<nombre>.json`). El bip depende de que la mala palabra esté transcripta.
 - La transcripción (large-v3-turbo) es buena pero se equivoca con nombres propios: corregir con contexto
   (p. ej. "Causton Road" = Khao San Road, "Finlandia" = Tailandia, "grado" = Grab). **Si una frase no se
   entiende, no subtitularla** (mejor sin subtítulo que inventado) y avisarle al usuario cuáles quedaron dudosas.

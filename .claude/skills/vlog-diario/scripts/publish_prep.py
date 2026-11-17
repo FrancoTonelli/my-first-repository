@@ -14,6 +14,9 @@ a = ap.parse_args()
 B = f'{a.ws}/build_{a.build}'; os.makedirs(a.out, exist_ok=True)
 dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f'{B}/concat.mp4'],
                            capture_output=True, text=True).stdout)
+vw, vh = map(int, subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
+                                  '-of', 'csv=p=0', f'{B}/concat.mp4'], capture_output=True, text=True).stdout.strip().split(','))
+landscape = vw > vh
 vbr = min(6000, int((a.target_mb * 8e6 / dur - 170e3) / 1000))   # kbps, tope 6 Mbps
 mob = f'{B}/movil.mp4'
 subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{B}/concat.mp4', '-i', f'{B}/music_env.wav', '-filter_complex',
@@ -24,14 +27,16 @@ subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{B}/concat.mp4', '-i', f'
 for old in glob.glob(f'{a.out}/part*.mp4'): os.remove(old)
 subprocess.run(['split', '-b', '14m', '-d', '-a', '2', '--numeric-suffixes=1', '--additional-suffix=.mp4', mob, f'{a.out}/part'], check=True)
 parts = len(glob.glob(f'{a.out}/part*.mp4')); size = os.path.getsize(mob)
-subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', '1.6', '-i', mob, '-frames:v', '1', '-vf', 'scale=540:960', '-q:v', '4',
+subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', '1.6', '-i', mob, '-frames:v', '1', '-vf', 'scale=960:540' if landscape else 'scale=540:960', '-q:v', '4',
                 f'{a.out}/poster.jpg'], check=True)
 tpl = open(os.path.join(os.path.dirname(__file__), '..', 'assets', 'page_template.html')).read()
 route = ' <span aria-hidden="true">→</span> '.join(x.strip() for x in a.route.split('|') if x.strip())
 m, s = divmod(int(round(dur)), 60)
 page = (tpl.replace('__PAGE_TITLE__', f'Día {a.day} · {a.title}').replace('__EYEBROW__', f'Vlog de viaje · Día {a.day}')
         .replace('__HEADLINE__', a.title).replace('__ROUTE__', route).replace('__DURATION__', f'{m}:{s:02d}')
-        .replace('__PARTS__', str(parts)).replace('__BYTES__', str(size))
+        .replace('__PARTS__', str(parts)).replace('__ASPECT__', '16 / 9' if landscape else '9 / 16')
+        .replace('__MAXW__', '960px' if landscape else '440px')
+        .replace('__FORMAT__', f"{'horizontal 16:9' if landscape else 'vertical 9:16'} · {vw} × {vh}").replace('__BYTES__', str(size))
         .replace('__FILENAME__', f'Dia{a.day}_' + ''.join(c if c.isalnum() else '_' for c in a.title) + '.mp4'))
 open(f'{a.out}/index.html', 'w').write(page)
 print(f'{parts} partes, {size/1e6:.0f} MB, {m}:{s:02d} -> {a.out}')

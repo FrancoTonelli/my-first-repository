@@ -33,14 +33,14 @@
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 20px 32px;
   }
-  main { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  main { max-width: __MAXW__; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
   header { display: flex; flex-direction: column; gap: 6px; }
   .eyebrow { font-family: var(--display); font-weight: 500; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
   h1 { font-family: var(--display); font-weight: 700; font-size: 30px; line-height: 1.1; margin: 0; text-wrap: balance; }
   .route { color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
   .route span[aria-hidden] { color: var(--accent); }
   .player {
-    position: relative; width: 100%; max-width: 100%; aspect-ratio: 9 / 16; border-radius: 14px; overflow: hidden;
+    position: relative; width: 100%; max-width: 100%; aspect-ratio: __ASPECT__; border-radius: 14px; overflow: hidden;
     background: #000 center / cover no-repeat; background-image: url("poster.jpg");
   }
   .player video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
@@ -100,7 +100,7 @@
       <li>En Google Photos, abrí el video, tocá ⋮ y elegí <b>Agregar al álbum</b> → Tailandia 2026.</li>
     </ol>
   </section>
-  <p class="meta">__DURATION__ · vertical 9:16 · 1080 × 1920 · MP4</p>
+  <p class="meta">__DURATION__ · __FORMAT__ · MP4</p>
 </main>
 
 <script>
