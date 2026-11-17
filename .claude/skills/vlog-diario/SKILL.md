@@ -34,6 +34,11 @@ export VLOG_WS=$SCRATCHPAD/vlog_diaN   # carpeta de trabajo del día (usar el sc
   Si el proxy rechaza un host, pedirlo con `update_environment` (no adivinar workarounds).
 - Fuentes: Inter e Inter Display (vienen instaladas en el contenedor).
 
+**Espacio en disco**: la sesión tiene un cupo fijo (un día de material 4K + caché ronda 6-10 GB). Usar una sola
+carpeta de modelos (no copiarla a cada `VLOG_WS`), borrar `build_*` y videos finales viejos una vez publicados,
+y si un `ffmpeg` falla con "No space left on device": liberar espacio, borrar el archivo final truncado y los
+segmentos que no abran con `ffprobe`, y volver a correr el plan (los segmentos sanos se reutilizan).
+
 ## 1. Traer el material del día
 
 ```bash
