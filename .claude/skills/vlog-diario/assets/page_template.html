@@ -1,0 +1,176 @@
+<title>__PAGE_TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* Layout: one narrow column built around a 9:16 phone-shaped player */
+  :root {
+    --bg: #f5f3ef;
+    --surface: #ffffff;
+    --fg: #1d1a17;
+    --muted: #6b645c;
+    --line: #e2ddd5;
+    --accent: #c8611b;      /* saffron, monk-robe orange */
+    --accent-fg: #ffffff;
+    --track: #ebe6de;
+    --display: "Space Grotesk", "Inter", system-ui, sans-serif;
+    --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151311; --surface: #1f1c19; --fg: #f1ece5; --muted: #a59d93;
+      --line: #34302b; --accent: #f0893d; --accent-fg: #1a1208; --track: #2c2824;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151311; --surface: #1f1c19; --fg: #f1ece5; --muted: #a59d93;
+    --line: #34302b; --accent: #f0893d; --accent-fg: #1a1208; --track: #2c2824;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 32px;
+  }
+  main { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  header { display: flex; flex-direction: column; gap: 6px; }
+  .eyebrow { font-family: var(--display); font-weight: 500; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  h1 { font-family: var(--display); font-weight: 700; font-size: 30px; line-height: 1.1; margin: 0; text-wrap: balance; }
+  .route { color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+  .route span[aria-hidden] { color: var(--accent); }
+  .player {
+    position: relative; width: 100%; max-width: 100%; aspect-ratio: 9 / 16; border-radius: 14px; overflow: hidden;
+    background: #000 center / cover no-repeat; background-image: url("poster.jpg");
+  }
+  .player video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
+  .veil { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px;
+    padding: 20px; background: linear-gradient(to top, rgba(0,0,0,.78), rgba(0,0,0,0) 55%); color: #fff; }
+  .veil p { margin: 0; font-size: 14px; color: rgba(255,255,255,.85); }
+  button {
+    font: 600 16px/1 var(--body); border: 0; border-radius: 12px; padding: 16px 18px; cursor: pointer;
+    background: var(--accent); color: var(--accent-fg); width: 100%;
+  }
+  button.secondary { background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+  button:disabled { opacity: .55; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+  .progress { display: flex; flex-direction: column; gap: 6px; }
+  .bar { height: 8px; border-radius: 99px; background: rgba(255,255,255,.25); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .nums { font-size: 13px; font-variant-numeric: tabular-nums; color: rgba(255,255,255,.85); }
+  .actions { display: flex; flex-direction: column; gap: 10px; }
+  .status { min-height: 1.5em; font-size: 14px; color: var(--muted); margin: 0; }
+  .status.ok { color: var(--fg); }
+  .help { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .help h2 { font-family: var(--display); font-size: 15px; margin: 0; }
+  .help ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 14px; }
+  .meta { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+</style>
+
+<main>
+  <header>
+    <span class="eyebrow">__EYEBROW__</span>
+    <h1>__HEADLINE__</h1>
+    <div class="route">__ROUTE__</div>
+  </header>
+
+  <div class="player" id="player">
+    <div class="veil" id="veil">
+      <p id="veilText">El video pesa <b id="sizeLabel">—</b>. Conviene cargarlo con wifi.</p>
+      <div class="progress" id="progress" hidden>
+        <div class="bar"><i id="barFill"></i></div>
+        <span class="nums" id="nums">0 %</span>
+      </div>
+      <button id="load" type="button">Cargar video</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="save" type="button" hidden>Guardar en el celular</button>
+    <p class="status" id="status" role="status"></p>
+  </div>
+
+  <section class="help">
+    <h2>Para pasarlo a Google Photos</h2>
+    <ol>
+      <li>Tocá <b>Cargar video</b> y esperá que llegue al 100 %.</li>
+      <li>Tocá <b>Guardar en el celular</b> y aceptá.</li>
+      <li>En iPhone se abre el menú de compartir: elegí <b>Guardar video</b> o <b>Google Photos</b>. En Android queda en Descargas.</li>
+      <li>En Google Photos, abrí el video, tocá ⋮ y elegí <b>Agregar al álbum</b> → Tailandia 2026.</li>
+    </ol>
+  </section>
+  <p class="meta">__DURATION__ · vertical 9:16 · 1080 × 1920 · MP4</p>
+</main>
+
+<script>
+  const PARTS = __PARTS__;          // number of chunk files part01.mp4 … partNN.mp4
+  const TOTAL_BYTES = __BYTES__;    // size of the reassembled MP4
+  const FILENAME = "__FILENAME__";
+
+  const $ = (id) => document.getElementById(id);
+  const mb = (b) => (b / 1048576).toFixed(0) + " MB";
+  $("sizeLabel").textContent = mb(TOTAL_BYTES);
+
+  let videoBlob = null;
+  let downloads = null;
+  if (window.claude && window.claude.use) {
+    window.claude.use("downloads").then((d) => { downloads = d; if (videoBlob) showSave(); }).catch(() => {});
+  }
+
+  function showSave() {
+    if (downloads) { $("save").hidden = false; }
+    else { $("status").textContent = "Desde esta vista no se puede guardar el archivo. Abrí la página en la app de Claude."; }
+  }
+
+  async function loadVideo() {
+    const btn = $("load");
+    btn.disabled = true; btn.textContent = "Cargando…";
+    $("progress").hidden = false; $("veilText").hidden = true;
+    const chunks = []; let got = 0;
+    try {
+      for (let i = 1; i <= PARTS; i++) {
+        const name = "part" + String(i).padStart(2, "0") + ".mp4";
+        let res = await fetch(name);
+        if (!res.ok) res = await fetch(name);           // one retry for a flaky connection
+        if (!res.ok) throw new Error("part " + i);
+        const buf = await res.arrayBuffer();
+        chunks.push(buf); got += buf.byteLength;
+        const pct = Math.min(100, Math.round(got / TOTAL_BYTES * 100));
+        $("barFill").style.width = pct + "%";
+        $("nums").textContent = pct + " %  ·  " + mb(got) + " de " + mb(TOTAL_BYTES);
+      }
+      videoBlob = new Blob(chunks, { type: "video/mp4" });
+      const v = document.createElement("video");
+      v.controls = true; v.playsInline = true; v.preload = "metadata";
+      v.src = URL.createObjectURL(videoBlob);
+      $("player").appendChild(v);
+      $("veil").hidden = true;
+      $("status").textContent = "Video listo.";
+      $("status").classList.add("ok");
+      showSave();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "Reintentar";
+      $("status").textContent = "Se cortó la carga. Revisá la conexión y tocá Reintentar.";
+    }
+  }
+
+  async function saveVideo() {
+    if (!videoBlob || !downloads) return;
+    const btn = $("save");
+    btn.disabled = true;
+    try {
+      await downloads.save({ filename: FILENAME, data: videoBlob });
+      $("status").textContent = "Listo. Buscalo en tu galería o en Descargas.";
+    } catch (e) {
+      const code = e && e.code;
+      if (code === "declined") $("status").textContent = "Cancelaste el guardado. Podés volver a tocar el botón.";
+      else if (code === "rate_limited") $("status").textContent = "Ya hay un guardado abierto. Esperá unos segundos y probá otra vez.";
+      else if (code === "too_large") $("status").textContent = "El archivo es demasiado grande para este dispositivo. Pedile a Claude una versión más liviana.";
+      else $("status").textContent = "No se pudo guardar desde esta vista. Probá abrir la página en la app de Claude.";
+    } finally { btn.disabled = false; }
+  }
+
+  $("load").addEventListener("click", loadVideo);
+  $("save").addEventListener("click", saveVideo);
+</script>
