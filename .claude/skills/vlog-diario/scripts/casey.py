@@ -272,8 +272,8 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Cap,Inter,50,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3.5,1.5,2,160,160,70,1
-Style: Label,Inter Display Black,66,&H00FFFFFF,&H00FFFFFF,&H00000000,&H70000000,-1,0,0,0,100,100,2,0,1,0,3,1,90,90,80,1
-Style: Title,Inter Display Black,170,&H00FFFFFF,&H00FFFFFF,&H00000000,&H70000000,-1,0,0,0,100,100,6,0,1,0,5,5,80,80,0,1
+Style: Label,Inter Display Black,66,&H00FFFFFF,&H00FFFFFF,&H90000000,&H70000000,-1,0,0,0,100,100,2,0,1,2,3,1,90,90,80,1
+Style: Title,Inter Display Black,170,&H00FFFFFF,&H00FFFFFF,&H90000000,&H70000000,-1,0,0,0,100,100,6,0,1,3,5,5,80,80,0,1
 """
 
 def events_for(start, d, s):
