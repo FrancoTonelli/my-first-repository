@@ -89,7 +89,9 @@ def jump(p, i, o, gap=0.45, pad=0.14, min_len=0.5, **kw):
         s = talk(p, a, b, **{k: v for k, v in kw.items() if k not in ('title', 'labels', 'caps', 'overlays')})
         s['caps'] = [c for c in kw.get('caps', []) if c[1] > a and c[0] < b]
         s['overlays'] = [ov for ov in kw.get('overlays', []) if ov[1] < b and ov[2] > a]
-        s['overlays'] = [(k, max(a, t0), min(b, t1), md) for k, t0, t1, md in s['overlays']]
+        s['overlays'] = [(k, max(a, t0), min(b, t1),
+                          dict(md, i=md['i'] + max(0.0, a - t0)) if md['kind'] == 'clip' else md)
+                         for k, t0, t1, md in s['overlays']]   # si la superposición sigue en el pedazo siguiente, la toma continúa
         s['labels'] = []
         segs.append(s)  # labels se asignan abajo
         s['title'] = kw.get('title') if first else None
@@ -102,11 +104,60 @@ def jump(p, i, o, gap=0.45, pad=0.14, min_len=0.5, **kw):
     if segs: segs[-1]['whip_out'] = kw.get('whip_out', False)
     return segs
 
-def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.2, quantize=True, **kw):
+# ---------------------------------------------------------------- calidad de imagen (para cortar bien las tomas)
+def quality(src):
+    """Por cada 1/6 s: nitidez (varianza del laplaciano), movimiento (diferencia entre cuadros) y brillo.
+    Se cachea en VLOG_WS/quality/<clip>.json."""
+    qd = W + '/quality'; os.makedirs(qd, exist_ok=True)
+    out = f'{qd}/{os.path.basename(src)[:-4]}.json'
+    if os.path.exists(out):
+        return json.load(open(out))
+    w, h = 160, 90
+    raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', src, '-vf', f'fps=6,scale={w}:{h}:force_original_aspect_ratio=decrease,'
+                          f'pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,format=gray', '-f', 'rawvideo', '-'], capture_output=True).stdout
+    fr = np.frombuffer(raw, np.uint8).reshape(-1, h, w).astype(np.float32)
+    lap = (-4 * fr[:, 1:-1, 1:-1] + fr[:, :-2, 1:-1] + fr[:, 2:, 1:-1] + fr[:, 1:-1, :-2] + fr[:, 1:-1, 2:])
+    sharp = lap.reshape(len(fr), -1).var(1)
+    mot = np.concatenate([[0], np.abs(np.diff(fr, axis=0)).reshape(len(fr) - 1, -1).mean(1)]) if len(fr) > 1 else np.zeros(1)
+    bright = fr.reshape(len(fr), -1).mean(1)
+    data = dict(fps=6, sharp=sharp.round(2).tolist(), motion=mot.round(2).tolist(), bright=bright.round(1).tolist())
+    json.dump(data, open(out, 'w'))
+    return data
+
+def bad_spans(src, i=0.0, o=None):
+    """Tramos feos (movidos, borrosos, muy oscuros o apuntando a cualquier lado) entre i y o."""
+    q = quality(src); fps = q['fps']
+    sh = np.array(q['sharp']); mo = np.array(q['motion']); br = np.array(q['bright'])
+    if len(sh) < 3: return []
+    bad = (sh < 0.35 * np.median(sh)) | (mo > max(3 * np.median(mo), 12)) | (br < 18)
+    bad = np.convolve(bad.astype(float), np.ones(3) / 3, mode='same') > 0.5   # suaviza
+    spans = []; start = None
+    for k, b in enumerate(bad):
+        t = k / fps
+        if b and start is None: start = t
+        if not b and start is not None: spans.append((start, t)); start = None
+    if start is not None: spans.append((start, len(bad) / fps))
+    o = o if o is not None else len(bad) / fps
+    return [(max(a, i), min(b, o)) for a, b in spans if b > i and a < o and b - a >= 0.3]
+
+def good_window(src, i, o, need=None):
+    """Tramo limpio más largo dentro de [i, o] (o el primero que alcance para `need` segundos)."""
+    t = i; best = (i, i)
+    for a, b in bad_spans(src, i, o) + [(o, o)]:
+        if a - t > best[1] - best[0]: best = (t, a)
+        if need and a - t >= need: return (t, a)
+        t = max(t, b)
+    return best if best[1] - best[0] >= 0.6 else (i, o)
+
+def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.2, quantize=True, clean=True, **kw):
     """Toma de lugar. o=None -> usa hasta el final útil. speed>1 = hyperlapse (dura (o-i)/speed).
-    vo=(clave, t) pone la voz de ese clip de fondo. quantize redondea la duración al pulso de la música."""
+    vo=(clave, t) pone la voz de ese clip de fondo. quantize redondea la duración al pulso de la música.
+    clean=True recorta la toma a su tramo limpio más largo (sin sacudones, borrones ni cámara al piso);
+    en hyperlapses no se recorta (el movimiento es la idea)."""
     src = f(p)
     if o is None: o = dur(src) - 0.05
+    if clean and speed == 1 and not vo:
+        i, o = good_window(src, i, o)
     d = (o - i) / speed
     if quantize and not vo:
         d = max(BEAT, round(d / BEAT) * BEAT)
@@ -149,8 +200,9 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
     sp = f'setpts=PTS/{speed},' if speed != 1 else ''
     mode = m.get('mode', 'auto')
     portrait = display_is_portrait(src, m.get('rot'))
-    if mode == 'auto':
-        mode = ('band' if kind == 'broll' else 'pillar') if portrait else 'fill'
+    if mode == 'auto':   # vertical -> franja horizontal que llena la pantalla (nunca chiquito en el medio)
+        mode = 'band' if portrait else 'fill'
+    by = m.get('band_y', 0.5 if kind == 'broll' else 0.32)   # en clips hablados la cara suele estar arriba
     post = []
     if speed > 1.5:
         post.append('deshake=rx=48:ry=48:edge=mirror')
@@ -167,7 +219,7 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
     if mode == 'fill':
         return f"[{idx}:v]{sp}{rot}scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH}{tm}{post},setsar=1,fps=30[{out}]"
     if mode == 'band':  # franja horizontal del medio de una toma vertical
-        return f"[{idx}:v]{sp}{rot}crop=iw:iw*9/16,scale={CW}:{CH}{tm}{post},setsar=1,fps=30[{out}]"
+        return f"[{idx}:v]{sp}{rot}crop=iw:iw*9/16:0:(ih-iw*9/16)*{by},scale={CW}:{CH}{tm}{post},setsar=1,fps=30[{out}]"
     # pillar: vertical entero sobre su propio fondo desenfocado
     return (f"[{idx}:v]{sp}{rot}scale=-2:{CH}{tm},split[a{out}][b{out}];"
             f"[a{out}]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},gblur=sigma=45,eq=brightness=-0.1[bg{out}];"
@@ -312,8 +364,36 @@ def whoosh(sr=48000):
     pan = np.linspace(-0.7, 0.7, n)
     return np.stack([out * (1 - pan) * 0.5, out * (1 + pan) * 0.5], 1).astype(np.float32)
 
+def used_ranges(s):
+    """(archivo, desde, hasta) de todo el material que muestra un segmento."""
+    r = []
+    if s['kind'] == 'talk':
+        r.append((s['src'], s['i'], s['o']))
+        for k, t0, t1, md in s.get('overlays', []):
+            if md['kind'] == 'clip': r.append((md['src'], md['i'], md['i'] + (t1 - t0)))
+            else: r.append((md['src'], 0, 0))
+    elif s['kind'] == 'broll':
+        r.append((s['src'], s['i'], s['i'] + s['d'] * s['speed']))
+    else:
+        r.append((s['src'], 0, 0))
+    return r
+
+def check_repeats(plan):
+    seen = []; warn = []
+    for n, s in enumerate(plan):
+        for src, a, b in used_ranges(s):
+            for m, (src2, a2, b2) in seen:
+                same_photo = a == b == 0 and a2 == b2 == 0 and src == src2
+                if src == src2 and (same_photo or min(b, b2) - max(a, a2) > 0.3):
+                    warn.append(f'  seg {m} y seg {n} repiten {os.path.basename(src)} [{max(a, a2):.1f}-{min(b, b2):.1f}]')
+        seen += [(n, r) for r in used_ranges(s)]
+    if warn:
+        print('MATERIAL REPETIDO (evitarlo salvo que sea a propósito):'); print('\n'.join(warn))
+    return warn
+
 def build(plan, name, final, music=None):
     plan = flat(plan)
+    check_repeats(plan)
     music = music or W + '/music_hiphop.wav'
     outdir = f'{W}/build_{name}'; os.makedirs(outdir, exist_ok=True)
     files = []
@@ -350,8 +430,8 @@ def build(plan, name, final, music=None):
     mus = mus * env[:, None]
     wh = whoosh(sr)
     for (s0, d0, a), (s1, d1, b) in zip(tl, tl[1:]):
-        if a.get('whip_out') or b.get('whip_in'):
-            p = int((s1 - 0.21) * sr); mus[p:p + len(wh)] += wh[:len(mus) - p] * 0.55
+        if a.get('whip_out') and b.get('whip_in'):   # solo en cambios de lugar marcados de los dos lados
+            p = int((s1 - 0.21) * sr); mus[p:p + len(wh)] += wh[:len(mus) - p] * 0.3
     mus = np.clip(mus, -1, 1)
     wo = wave.open(f'{outdir}/music_env.wav', 'wb'); wo.setnchannels(2); wo.setsampwidth(2); wo.setframerate(sr)
     wo.writeframes((mus * 32767).astype(np.int16).tobytes()); wo.close()

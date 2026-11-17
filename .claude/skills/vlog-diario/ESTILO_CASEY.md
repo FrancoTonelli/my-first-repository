@@ -3,8 +3,9 @@
 Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat". Motor: `scripts/casey.py`
 (importa `vlog.py`, así que valen las mismas claves de archivo, transcripciones y bip). Acordado con el usuario:
 
-- **Horizontal 1920x1080** (YouTube). Los clips verticales hablados van enteros sobre su propio fondo
-  desenfocado (`pillar`); las tomas verticales de lugar se recortan a una franja horizontal (`band`).
+- **Horizontal 1920x1080** (YouTube). Todo llena la pantalla: los clips verticales se recortan a una franja
+  horizontal (`band`; en clips hablados la franja va arriba, `band_y=0.32`, para no cortar caras; ajustable por
+  segmento con `band_y=`). `mode='pillar'` (vertical chiquito sobre fondo desenfocado) solo si el usuario lo pide.
 - **Sin subtítulos**, salvo cuando una frase no se entiende bien (ruido, viento, gente hablando encima).
 - **Puede quedar largo.** Aprovechar la mayoría de las tomas generales y de detalle de cada lugar.
 
@@ -24,8 +25,16 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 4. **Las tomas cuentan la historia**: por cada lugar, toma general → detalles (comida, carteles, precios,
    manos, texturas) → gente. Los traslados se resumen con **hyperlapse** (`broll(..., speed=4..8)`) de
    caminatas, tuk tuk, tren, auto. Timelapses cortos (menos de 5 s).
-5. **Barridos** (`whip_out=True` en una toma y `whip_in=True` en la siguiente) para cambiar de lugar o de momento;
-   el motor agrega el "whoosh". No en cada corte: 1 cada cambio de lugar.
+5. **Barridos** (`whip_out=True` en una toma y `whip_in=True` en la siguiente) solo en los 4-6 cambios grandes de
+   lugar del día. El "whoosh" suena únicamente cuando los dos lados lo marcan, y bajito. **El usuario pidió no
+   abusar del whoosh.**
+5b. **Cortes limpios**: antes de escribir el plan, mirar cada clip a 1 cuadro por segundo y elegir entradas y
+   salidas a mano (sin cámara al piso, contra la luz, de costado ni borrosa). `broll()` además recorta solo a su
+   tramo limpio más largo (`clean=True`, usa `bad_spans()`); en clips hablados, tapar los tramos feos con
+   `overlays` de otras tomas en vez de cortar la voz.
+5c. **No repetir material**: cada pedazo de video se usa una sola vez (el gancho tampoco se repite después: se
+   saca de la historia). `build()` avisa si hay repeticiones. Tampoco repetir la misma frase desde dos clips ni
+   la misma escena en video y en foto.
 6. **La música manda** en los montajes: hip-hop instrumental (`music_hiphop.py`, 90 BPM). Los bloques de tomas
    arrancan en compás y sus duraciones se redondean al pulso (cortes en el beat). Bajo la voz queda muy baja.
    Para remarcar un remate: `music='off'` en ese segmento (silencio de golpe).
