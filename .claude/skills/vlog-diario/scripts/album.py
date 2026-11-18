@@ -12,7 +12,7 @@ State lives in WORKSPACE/manifest.json.
 """
 import argparse, json, os, re, subprocess, sys, time, datetime as dt
 
-ALBUM_URL = os.environ.get('VLOG_ALBUM') or sys.exit('Falta VLOG_ALBUM: el enlace compartido del álbum (variable del entorno)')
+ALBUM_URL = os.environ.get('VLOG_ALBUM')
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36'
 
 def fetch_items(url):
@@ -55,7 +55,10 @@ def main():
     ap.add_argument('--from', dest='frm'); ap.add_argument('--to')
     ap.add_argument('--tz', type=float, default=7.0, help='horas respecto de UTC para nombrar (Tailandia = 7)')
     ap.add_argument('--rounds', type=int, default=20); ap.add_argument('--wait', type=int, default=120)
+    ap.add_argument('--album', help='enlace compartido del álbum (si no, VLOG_ALBUM)')
     a = ap.parse_args()
+    global ALBUM_URL
+    ALBUM_URL = a.album or ALBUM_URL or sys.exit('Falta el enlace del álbum: --album URL o variable VLOG_ALBUM')
     W = a.workspace; os.makedirs(W + '/media', exist_ok=True)
     mpath = W + '/manifest.json'
     man = json.load(open(mpath)) if os.path.exists(mpath) else {}
@@ -70,6 +73,9 @@ def main():
         title, items = fetch_items(ALBUM_URL)
         sel = sorted([it for it in items if in_range(it)], key=lambda x: x['ts'])
         print(f'Álbum "{title}": {len(items)} elementos; {len(sel)} en el rango')
+        if len(items) >= 300:
+            print('  AVISO: el enlace compartido muestra solo los primeros 300 elementos; puede faltar material.'
+                  ' Pedirle al usuario un álbum aparte para el día (ver SKILL.md).')
         for it in sel:
             t = local(it['ts'], a.tz)
             name = f"{t:%m%d_%H%M}_{it['id'][-6:]}." + ('mp4' if it['video'] else 'jpg')

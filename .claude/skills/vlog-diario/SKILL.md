@@ -41,6 +41,11 @@ segmentos que no abran con `ffprobe`, y volver a correr el plan (los segmentos s
 
 ## 1. Traer el material del día
 
+**Límite de 300**: el enlace compartido de Google Photos muestra solo los primeros 300 elementos del álbum (el
+resto lo carga por páginas con una API interna que esta skill NO usa). El álbum general "Tailandia 2026" ya
+superó ese número, así que el usuario arma **un álbum por día** ("Tailandia · Día N") y pasa su enlace:
+`album.py ... --album <enlace del día>`. Si `album.py` avisa que hay 300 o más, pedirle el álbum del día.
+
 ```bash
 python3 $K/album.py $VLOG_WS list --from '2026-11-17 00:00' --to '2026-11-18 03:00'   # ver qué hay
 python3 $K/album.py $VLOG_WS pull --from '2026-11-17 00:00' --to '2026-11-18 03:00'   # bajar
