@@ -6,6 +6,11 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 - **Horizontal 1920x1080** (YouTube). Todo llena la pantalla: los clips verticales se recortan a una franja
   horizontal (`band`; en clips hablados la franja va arriba, `band_y=0.32`, para no cortar caras; ajustable por
   segmento con `band_y=`). `mode='pillar'` (vertical chiquito sobre fondo desenfocado) solo si el usuario lo pide.
+- **Variante vertical** (el usuario la pidió para el Día 1, que tiene mucho material vertical): mismo estilo en
+  1080x1920 con `VLOG_CANVAS=vertical` antes de importar `casey`. Los verticales llenan la pantalla, los horizontales
+  hablados van enteros a lo ancho sobre su fondo desenfocado (`fitw`) y las tomas horizontales se recortan al centro.
+  Usar otro nombre de build (la caché depende del lienzo). Ejemplo: un `run_*.py` que hace
+  `os.environ['VLOG_CANVAS']='vertical'`, carga el plan con `runpy.run_path` y llama `casey.build(PLAN, 'diaN_vertical', ...)`.
 - **Sin subtítulos**, salvo cuando una frase no se entiende bien (ruido, viento, gente hablando encima).
 - **Puede quedar largo.** Aprovechar la mayoría de las tomas generales y de detalle de cada lugar.
 

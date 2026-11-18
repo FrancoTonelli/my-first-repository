@@ -18,7 +18,9 @@ import vlog
 from vlog import f, ph, run, dur, is_hdr, TONEMAP, achain, bleeps_for, mask_caption, ts, WORDS
 
 W = vlog.W
-CW, CH = 1920, 1080
+VERTICAL = os.environ.get('VLOG_CANVAS', '').lower() in ('vertical', '9:16', 'v')
+CW, CH = (1080, 1920) if VERTICAL else (1920, 1080)   # VLOG_CANVAS=vertical -> 9:16 con el mismo estilo
+WHIP_W = int(CW * 1.25) // 2 * 2; WHIP_S = int(CW * 0.12)
 BPM = 90
 BEAT = 60 / BPM
 ENC = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', '30',
@@ -204,8 +206,11 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
     sp = f'setpts=PTS/{speed},' if speed != 1 else ''
     mode = m.get('mode', 'auto')
     portrait = display_is_portrait(src, m.get('rot'))
-    if mode == 'auto':   # vertical -> franja horizontal que llena la pantalla (nunca chiquito en el medio)
-        mode = 'band' if portrait else 'fill'
+    if mode == 'auto':   # siempre llenar la pantalla (nunca chiquito en el medio)
+        if VERTICAL:     # lienzo vertical: verticales llenan; horizontales hablados enteros a lo ancho; tomas recortadas
+            mode = 'fill' if portrait or kind == 'broll' else 'fitw'
+        else:            # lienzo horizontal: verticales -> franja horizontal
+            mode = 'band' if portrait else 'fill'
     by = m.get('band_y', 0.5 if kind == 'broll' else 0.32)   # en clips hablados la cara suele estar arriba
     post = []
     if speed > 1.5:
@@ -215,15 +220,19 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
     if grade:
         post.append('eq=contrast=1.12:saturation=1.07:gamma=0.97,unsharp=5:5:0.35')
     if whip_in or whip_out:
-        T = 0.2; S = 230
+        T = 0.2; S = WHIP_S
         xs = (f"(iw-ow)/2+{S}*(-{int(whip_in)}*max(0,({T}-t)/{T})+{int(whip_out)}*max(0,(t-{d - T:.3f})/{T}))")
         en = '+'.join(x for x in ([f'lt(t,{T})'] if whip_in else []) + ([f'gt(t,{d - T:.3f})'] if whip_out else []))
-        post.append(f"scale=2400:-2,crop={CW}:{CH}:x='{xs}':y=(ih-oh)/2,avgblur=sizeX=56:sizeY=1:enable='{en}'")
+        post.append(f"scale={WHIP_W}:-2,crop={CW}:{CH}:x='{xs}':y=(ih-oh)/2,avgblur=sizeX=56:sizeY=1:enable='{en}'")
     post = (',' + ','.join(post)) if post else ''
     if mode == 'fill':
         return f"[{idx}:v]{sp}{rot}scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH}{tm}{post},setsar=1,fps=30[{out}]"
     if mode == 'band':  # franja horizontal del medio de una toma vertical
         return f"[{idx}:v]{sp}{rot}crop=iw:iw*9/16:0:(ih-iw*9/16)*{by},scale={CW}:{CH}{tm}{post},setsar=1,fps=30[{out}]"
+    if mode == 'fitw':  # horizontal entero a lo ancho (un poco ampliado) sobre su propio fondo desenfocado
+        return (f"[{idx}:v]{sp}{rot}scale={int(CW * 1.15) // 2 * 2}:-2{tm},split[a{out}][b{out}];"
+                f"[a{out}]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},gblur=sigma=45,eq=brightness=-0.1[bg{out}];"
+                f"[b{out}]crop={CW}:ih[fg{out}];[bg{out}][fg{out}]overlay=(W-w)/2:(H-h)/2{post},setsar=1,fps=30[{out}]")
     # pillar: vertical entero sobre su propio fondo desenfocado
     return (f"[{idx}:v]{sp}{rot}scale=-2:{CH}{tm},split[a{out}][b{out}];"
             f"[a{out}]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},gblur=sigma=45,eq=brightness=-0.1[bg{out}];"
@@ -233,10 +242,10 @@ def photo_chain(idx, d, out='v', whip_in=False, whip_out=False):
     c = (f"[{idx}:v]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},"
          f"scale=w='trunc({CW}*(1+0.06*t/{d})/2)*2':h=-2:eval=frame,crop={CW}:{CH},setsar=1,fps=30,format=yuv420p")
     if whip_in or whip_out:
-        T = 0.2; S = 230
+        T = 0.2; S = WHIP_S
         xs = (f"(iw-ow)/2+{S}*(-{int(whip_in)}*max(0,({T}-t)/{T})+{int(whip_out)}*max(0,(t-{d - T:.3f})/{T}))")
         en = '+'.join(x for x in ([f'lt(t,{T})'] if whip_in else []) + ([f'gt(t,{d - T:.3f})'] if whip_out else []))
-        c += f",scale=2400:-2,crop={CW}:{CH}:x='{xs}':y=(ih-oh)/2,avgblur=sizeX=56:sizeY=1:enable='{en}'"
+        c += f",scale={WHIP_W}:-2,crop={CW}:{CH}:x='{xs}':y=(ih-oh)/2,avgblur=sizeX=56:sizeY=1:enable='{en}'"
     return c + f"[{out}]"
 
 def seg_bleeps(src, i, o, a, b):
@@ -327,9 +336,9 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Inter,50,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3.5,1.5,2,160,160,70,1
-Style: Label,Inter Display Black,66,&H00FFFFFF,&H00FFFFFF,&H90000000,&H70000000,-1,0,0,0,100,100,2,0,1,2,3,1,90,90,80,1
-Style: Title,Inter Display Black,170,&H00FFFFFF,&H00FFFFFF,&H90000000,&H70000000,-1,0,0,0,100,100,6,0,1,3,5,5,80,80,0,1
+Style: Cap,Inter,{56 if VERTICAL else 50},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3.5,1.5,2,{80 if VERTICAL else 160},{80 if VERTICAL else 160},{430 if VERTICAL else 70},1
+Style: Label,Inter Display Black,{60 if VERTICAL else 66},&H00FFFFFF,&H00FFFFFF,&H90000000,&H70000000,-1,0,0,0,100,100,2,0,1,2,3,1,{70 if VERTICAL else 90},{70 if VERTICAL else 90},{330 if VERTICAL else 80},1
+Style: Title,Inter Display Black,{130 if VERTICAL else 170},&H00FFFFFF,&H00FFFFFF,&H90000000,&H70000000,-1,0,0,0,100,100,{4 if VERTICAL else 6},0,1,3,5,5,60,60,0,1
 """
 
 def events_for(start, d, s):
