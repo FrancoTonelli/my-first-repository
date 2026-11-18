@@ -17,6 +17,11 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 ## Reglas de edición
 
 **Pedidos explícitos del usuario (no negociables):**
+- **Las charlas van completas**: en los clips donde hablan, usar todo lo que dicen (desde la primera hasta la última
+  frase del clip), no elegir pedacitos. `jump()` solo corta silencios de más de 1 s (`gap=1.0`, margen `pad=0.25`).
+  Si hay un tramo feo (cámara al piso), taparlo con un overlay, nunca cortar la voz.
+- **Nada de tomas parecidas repetidas**: si los dos celulares filmaron lo mismo (mismo mostrador, misma calle), usar una
+  sola de las dos (la otra, como mucho, para tapar un tramo feo).
 - **Tomas cinematográficas cortas**: no poner las tomas enteras; `broll()` usa por defecto el mejor tramo limpio de hasta
   6 pulsos (4 s). Solo `max_beats=None` (o más pulsos) en tomas que de verdad lo merecen.
 - **De lo general al detalle**: en cada lugar, primero la toma general (fachada, panorámica, establecimiento) y después

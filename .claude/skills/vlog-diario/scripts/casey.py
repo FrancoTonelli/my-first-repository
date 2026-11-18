@@ -69,7 +69,7 @@ def _voiced(src, i, o, gap, margin_db=7.0):
         else: merged.append([a2, b2])
     return [r for r in merged if r[1] - r[0] > 0.15]
 
-def jump(p, i, o, gap=0.45, pad=0.14, min_len=0.5, **kw):
+def jump(p, i, o, gap=1.0, pad=0.25, min_len=0.5, **kw):
     """Clip hablado recortado en sus silencios (según la transcripción). Devuelve una lista de segmentos.
     Los overlays/labels/caps se reparten en los pedazos según sus tiempos (en segundos del archivo)."""
     src = f(p); key = os.path.basename(src)[:-4]
