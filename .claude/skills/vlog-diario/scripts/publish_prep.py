@@ -10,6 +10,9 @@ ap = argparse.ArgumentParser()
 ap.add_argument('ws'); ap.add_argument('build'); ap.add_argument('out')
 ap.add_argument('--title', required=True); ap.add_argument('--day', required=True)
 ap.add_argument('--route', default=''); ap.add_argument('--target-mb', type=float, default=180)
+ap.add_argument('--start', type=float, help='segundo de inicio (para partir un día largo en varias páginas)')
+ap.add_argument('--end', type=float, help='segundo final')
+ap.add_argument('--part', default='', help='etiqueta de la parte, p. ej. "Parte 1"')
 a = ap.parse_args()
 B = f'{a.ws}/build_{a.build}'; os.makedirs(a.out, exist_ok=True)
 dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f'{B}/concat.mp4'],
@@ -17,11 +20,13 @@ dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=d
 vw, vh = map(int, subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
                                   '-of', 'csv=p=0', f'{B}/concat.mp4'], capture_output=True, text=True).stdout.strip().split(','))
 landscape = vw > vh
+A0 = a.start or 0.0; A1 = a.end or dur
+dur = A1 - A0
 vbr = min(6000, int((a.target_mb * 8e6 / dur - 170e3) / 1000))   # kbps, tope 6 Mbps
-mob = f'{B}/movil.mp4'
+mob = f'{B}/movil{a.part.replace(" ", "")}.mp4'
 subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{B}/concat.mp4', '-i', f'{B}/music_env.wav', '-filter_complex',
-                f"[0:v]ass={B}/subs.ass[v];[0:a]loudnorm=I=-16:TP=-2:LRA=9[d];[d][1:a]amix=inputs=2:normalize=0:duration=first,"
-                "alimiter=limit=0.89[a]", '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'medium',
+                f"[0:v]ass={B}/subs.ass,trim=start={A0}:end={A1},setpts=PTS-STARTPTS[v];[0:a]loudnorm=I=-16:TP=-2:LRA=9[d];"
+                f"[d][1:a]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.89,atrim=start={A0}:end={A1},asetpts=PTS-STARTPTS[a]", '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'medium',
                 '-b:v', f'{vbr}k', '-maxrate', f'{int(vbr*1.8)}k', '-bufsize', f'{int(vbr*2.8)}k', '-profile:v', 'high',
                 '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '160k', mob], check=True)
 for old in glob.glob(f'{a.out}/part*.mp4'): os.remove(old)
@@ -32,11 +37,12 @@ subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', '1.6', '-i', mob, '-frames
 tpl = open(os.path.join(os.path.dirname(__file__), '..', 'assets', 'page_template.html')).read()
 route = ' <span aria-hidden="true">→</span> '.join(x.strip() for x in a.route.split('|') if x.strip())
 m, s = divmod(int(round(dur)), 60)
-page = (tpl.replace('__PAGE_TITLE__', f'Día {a.day} · {a.title}').replace('__EYEBROW__', f'Vlog de viaje · Día {a.day}')
-        .replace('__HEADLINE__', a.title).replace('__ROUTE__', route).replace('__DURATION__', f'{m}:{s:02d}')
+label = f' · {a.part}' if a.part else ''
+page = (tpl.replace('__PAGE_TITLE__', f'Día {a.day} · {a.title}{label}').replace('__EYEBROW__', f'Vlog de viaje · Día {a.day}')
+        .replace('__HEADLINE__', a.title + (f' <span style="opacity:.6">({a.part})</span>' if a.part else '')).replace('__ROUTE__', route).replace('__DURATION__', f'{m}:{s:02d}')
         .replace('__PARTS__', str(parts)).replace('__ASPECT__', '16 / 9' if landscape else '9 / 16')
         .replace('__MAXW__', '960px' if landscape else '440px')
         .replace('__FORMAT__', f"{'horizontal 16:9' if landscape else 'vertical 9:16'} · {vw} × {vh}").replace('__BYTES__', str(size))
-        .replace('__FILENAME__', f'Dia{a.day}_' + ''.join(c if c.isalnum() else '_' for c in a.title) + '.mp4'))
+        .replace('__FILENAME__', f'Dia{a.day}_' + ''.join(c if c.isalnum() else '_' for c in a.title + label) + '.mp4'))
 open(f'{a.out}/index.html', 'w').write(page)
 print(f'{parts} partes, {size/1e6:.0f} MB, {m}:{s:02d} -> {a.out}')
