@@ -13,6 +13,7 @@ ap.add_argument('--route', default=''); ap.add_argument('--target-mb', type=floa
 ap.add_argument('--start', type=float, help='segundo de inicio (para partir un día largo en varias páginas)')
 ap.add_argument('--end', type=float, help='segundo final')
 ap.add_argument('--part', default='', help='etiqueta de la parte, p. ej. "Parte 1"')
+ap.add_argument('--video', help='video final ya exportado por build(); con --start/--end conviene cortar de acá (más robusto)')
 a = ap.parse_args()
 B = f'{a.ws}/build_{a.build}'; os.makedirs(a.out, exist_ok=True)
 dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f'{B}/concat.mp4'],
@@ -24,11 +25,17 @@ A0 = a.start or 0.0; A1 = a.end or dur
 dur = A1 - A0
 vbr = min(6000, int((a.target_mb * 8e6 / dur - 170e3) / 1000))   # kbps, tope 6 Mbps
 mob = f'{B}/movil{a.part.replace(" ", "")}.mp4'
-subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{B}/concat.mp4', '-i', f'{B}/music_env.wav', '-filter_complex',
-                f"[0:v]ass={B}/subs.ass,trim=start={A0}:end={A1},setpts=PTS-STARTPTS[v];[0:a]loudnorm=I=-16:TP=-2:LRA=9[d];"
-                f"[d][1:a]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.89,atrim=start={A0}:end={A1},asetpts=PTS-STARTPTS[a]", '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'medium',
-                '-b:v', f'{vbr}k', '-maxrate', f'{int(vbr*1.8)}k', '-bufsize', f'{int(vbr*2.8)}k', '-profile:v', 'high',
-                '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '160k', mob], check=True)
+if a.video:   # cortar del final ya mezclado (subtítulos, música y bip incluidos)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', f'{A0}', '-to', f'{A1}', '-i', a.video,
+                    '-c:v', 'libx264', '-preset', 'medium', '-b:v', f'{vbr}k', '-maxrate', f'{int(vbr*1.8)}k',
+                    '-bufsize', f'{int(vbr*2.8)}k', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+                    '-c:a', 'aac', '-b:a', '160k', mob], check=True)
+else:
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{B}/concat.mp4', '-i', f'{B}/music_env.wav', '-filter_complex',
+                    f"[0:v]ass={B}/subs.ass,trim=start={A0}:end={A1},setpts=PTS-STARTPTS[v];[0:a]loudnorm=I=-16:TP=-2:LRA=9[d];"
+                    f"[d][1:a]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.89,atrim=start={A0}:end={A1},asetpts=PTS-STARTPTS[a]", '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'medium',
+                    '-b:v', f'{vbr}k', '-maxrate', f'{int(vbr*1.8)}k', '-bufsize', f'{int(vbr*2.8)}k', '-profile:v', 'high',
+                    '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '160k', mob], check=True)
 for old in glob.glob(f'{a.out}/part*.mp4'): os.remove(old)
 subprocess.run(['split', '-b', '14m', '-d', '-a', '2', '--numeric-suffixes=1', '--additional-suffix=.mp4', mob, f'{a.out}/part'], check=True)
 parts = len(glob.glob(f'{a.out}/part*.mp4')); size = os.path.getsize(mob)

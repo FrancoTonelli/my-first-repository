@@ -152,7 +152,8 @@ python3 $K/publish_prep.py $VLOG_WS diaN $SCRATCHPAD/pagina_diaN --title 'Templo
 - Para encontrar páginas de días anteriores: Artifact `action: "list"`.
 - Mantener la versión del celular en ~180 MB: la app de Android corta en 200 MiB.
 - **Días largos (más de ~12 min)**: partir en dos o más páginas en un cambio de sección para que cada parte se vea
-  bien: `publish_prep.py ... --part 'Parte 1' --end <seg>` y `--part 'Parte 2' --start <seg>` (el inicio de cada
+  bien: `publish_prep.py ... --video <final.mp4> --part 'Parte 1' --end <seg>` y `--part 'Parte 2' --start <seg>`
+  (con `--video` corta del final ya mezclado; recalcular la mezcla desde la mitad falla en ffmpeg) (el inicio de cada
   segmento sale de sumar las duraciones de `build_<nombre>/list.txt`).
 - No mandar el MP4 por SendUserFile como forma de entrega principal (en el celular no se puede bajar).
 
