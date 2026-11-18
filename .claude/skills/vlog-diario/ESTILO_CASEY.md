@@ -11,6 +11,16 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 
 ## Reglas de edición
 
+**Pedidos explícitos del usuario (no negociables):**
+- **Tomas cinematográficas cortas**: no poner las tomas enteras; `broll()` usa por defecto el mejor tramo limpio de hasta
+  6 pulsos (4 s). Solo `max_beats=None` (o más pulsos) en tomas que de verdad lo merecen.
+- **De lo general al detalle**: en cada lugar, primero la toma general (fachada, panorámica, establecimiento) y después
+  los detalles (texturas, comida, carteles, manos). Ordenar el plan así dentro de cada sección.
+- **Sin sonido donde no se habla**: las tomas sin voz van solo con música (`amb=0` por defecto).
+- **Cambios de escena en el beat**: todo segmento dura un múltiplo exacto del pulso (90 BPM = 0,667 s), también los
+  clips hablados (`build()` los ajusta), la música corre continua y el concat usa duraciones exactas: cada corte cae en
+  un beat.
+
 0. **Videos antes que fotos** (pedido del usuario): las fotos solo cuando no hay video de ese momento o lugar.
 
 1. **El día es una historia**: plan o problema al principio → camino → resolución → cierre. Lo que no suma a

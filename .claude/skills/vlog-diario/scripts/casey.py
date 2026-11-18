@@ -149,22 +149,26 @@ def good_window(src, i, o, need=None):
         t = max(t, b)
     return best if best[1] - best[0] >= 0.6 else (i, o)
 
-def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.2, quantize=True, clean=True, **kw):
+def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.0, quantize=True, clean=True, max_beats=6, **kw):
     """Toma de lugar. o=None -> usa hasta el final útil. speed>1 = hyperlapse (dura (o-i)/speed).
-    vo=(clave, t) pone la voz de ese clip de fondo. quantize redondea la duración al pulso de la música.
-    clean=True recorta la toma a su tramo limpio más largo (sin sacudones, borrones ni cámara al piso);
-    en hyperlapses no se recorta (el movimiento es la idea)."""
+    vo=(clave, t) pone la voz de ese clip de fondo. Sin vo, la toma va SIN sonido (solo música; amb>0 para dejar ambiente).
+    Las tomas se acortan solas a su mejor tramo limpio de hasta `max_beats` pulsos (6 = 4 s); max_beats=None la deja
+    entera (solo para tomas que valen la pena largas). La duración siempre es un múltiplo del pulso (cortes en el beat)."""
     src = f(p)
     if o is None: o = dur(src) - 0.05
     if clean and speed == 1 and not vo:
-        i, o = good_window(src, i, o)
+        need = max_beats * BEAT if max_beats else None
+        a, b = good_window(src, i, o, need)
+        i, o = a, (min(b, a + need) if need else b)
+    elif max_beats and speed == 1 and not vo and o - i > max_beats * BEAT:
+        o = i + max_beats * BEAT
     d = (o - i) / speed
-    if quantize and not vo:
+    if quantize:
         d = max(BEAT, round(d / BEAT) * BEAT)
     return _base('broll', p, i=i, d=round(d, 4), speed=speed, vo=vo, push=push, amb=amb, **kw)
 
 def photo(p, d=None, vo=None, **kw):
-    d = d or 2 * BEAT
+    d = max(BEAT, round((d or 2 * BEAT) / BEAT) * BEAT)
     return _base('photo', None, src=ph(p), d=d, vo=vo, **kw)
 
 def media(p, i=0.0, mode='auto', rot=None):
@@ -391,8 +395,25 @@ def check_repeats(plan):
         print('MATERIAL REPETIDO (evitarlo salvo que sea a propósito):'); print('\n'.join(warn))
     return warn
 
+def seg_len(s):
+    return (s['o'] - s['i']) if s['kind'] == 'talk' else s['d']
+
+def snap_to_beat(s, nxt=None):
+    """Clip hablado: duración = múltiplo del pulso. Se estira hasta un pulso si el archivo da y no se pisa con el
+    pedazo siguiente del mismo clip (no repetir audio); si no, se acorta."""
+    if s['kind'] != 'talk': return s
+    L = s['o'] - s['i']; limit = dur(s['src']) - 0.04
+    if nxt is not None and nxt.get('kind') == 'talk' and nxt.get('src') == s['src'] and nxt['i'] > s['i']:
+        limit = min(limit, nxt['i'])
+    up = math.ceil(L / BEAT - 1e-6) * BEAT
+    o = s['i'] + up if s['i'] + up <= limit else s['i'] + max(BEAT, math.floor(L / BEAT) * BEAT)
+    s = dict(s, o=round(o, 4))
+    s['overlays'] = [(k, t0, min(t1, s['o']), md) for k, t0, t1, md in s.get('overlays', []) if t0 < s['o']]
+    return s
+
 def build(plan, name, final, music=None):
     plan = flat(plan)
+    plan = [snap_to_beat(s, plan[n + 1] if n + 1 < len(plan) else None) for n, s in enumerate(plan)]
     check_repeats(plan)
     music = music or W + '/music_hiphop.wav'
     outdir = f'{W}/build_{name}'; os.makedirs(outdir, exist_ok=True)
@@ -401,30 +422,20 @@ def build(plan, name, final, music=None):
         files.append(render(s, outdir)); print('seg', n, s['kind'], flush=True)
     t = 0.0; tl = []
     for s, p in zip(plan, files):
-        d = dur(p); tl.append((t, d, s)); t += d
+        d = seg_len(s); tl.append((t, d, s)); t += d     # duraciones exactas (múltiplos del pulso)
     total = t
     ev = []
     for start, d, s in tl: ev += events_for(start, d, s)
     open(f'{outdir}/subs.ass', 'w').write(ASS_HEAD + '\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n' + '\n'.join(ev) + '\n')
-    # música: se arma por tramos; cada bloque de tomas arranca en un compás nuevo de la pista
+    # música continua desde el compás 1: como todo dura múltiplos del pulso, cada corte cae en un beat
     w = wave.open(music); sr = w.getframerate()
     src = np.frombuffer(w.readframes(w.getnframes()), np.int16).reshape(-1, 2).astype(np.float32) / 32768
     nT = int(total * sr) + sr
-    mus = np.zeros((nT, 2), np.float32); env = np.zeros(nT, np.float32)
-    clock = 0.0; bar = 4 * BEAT; prev = None; xf = int(0.03 * sr)
+    while len(src) < nT: src = np.concatenate([src, src])
+    mus = src[:nT].copy(); env = np.zeros(nT, np.float32)
     for start, d, s in tl:
         k = s['kind'] + ('_vo' if s.get('vo') else '')
-        lvl = FORCED.get(s.get('music'), LEVEL.get(k, 0.11))
-        is_montage = s['kind'] in ('broll', 'photo') and not s.get('vo')
-        if is_montage and prev != 'montage':
-            clock = math.ceil(clock / bar) * bar
-        a = int(start * sr); n = int(d * sr) + 1
-        c0 = int(clock * sr) % (len(src) - n - 1)
-        chunk = src[c0:c0 + n].copy()
-        chunk[:xf] *= np.linspace(0, 1, xf)[:, None]
-        mus[a:a + n] += chunk[:len(mus) - a]
-        env[a:a + n] = lvl
-        clock += d; prev = 'montage' if is_montage else 'other'
+        env[int(start * sr):int((start + d) * sr) + 1] = FORCED.get(s.get('music'), LEVEL.get(k, 0.11))
     k = int(0.25 * sr); env = np.convolve(env, np.ones(k) / k, mode='same')
     fo = int(3 * sr); end = int(total * sr); env[end - fo:end] *= np.linspace(1, 0, fo); env[end:] = 0
     mus = mus * env[:, None]
@@ -435,7 +446,8 @@ def build(plan, name, final, music=None):
     mus = np.clip(mus, -1, 1)
     wo = wave.open(f'{outdir}/music_env.wav', 'wb'); wo.setnchannels(2); wo.setsampwidth(2); wo.setframerate(sr)
     wo.writeframes((mus * 32767).astype(np.int16).tobytes()); wo.close()
-    open(f'{outdir}/list.txt', 'w').write(''.join(f"file '{p}'\n" for p in files))
+    open(f'{outdir}/list.txt', 'w').write(''.join(f"file '{p}'\noutpoint {seg_len(s):.4f}\nduration {seg_len(s):.4f}\n"
+                                                for p, s in zip(files, plan)))
     run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', f'{outdir}/list.txt', '-c', 'copy', f'{outdir}/concat.mp4'])
     run(['ffmpeg', '-v', 'error', '-y', '-i', f'{outdir}/concat.mp4', '-i', f'{outdir}/music_env.wav', '-filter_complex',
          f"[0:v]ass={outdir}/subs.ass[v];[0:a]loudnorm=I=-16:TP=-2:LRA=9[d];[d][1:a]amix=inputs=2:normalize=0:duration=first,"
