@@ -11,6 +11,8 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 
 ## Reglas de edición
 
+0. **Videos antes que fotos** (pedido del usuario): las fotos solo cuando no hay video de ese momento o lugar.
+
 1. **El día es una historia**: plan o problema al principio → camino → resolución → cierre. Lo que no suma a
    esa historia se va; lo que suma, se queda aunque sea largo.
 2. **Gancho primero**: abrir con el momento más llamativo del día (2-6 s), después el título grande

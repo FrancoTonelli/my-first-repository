@@ -103,6 +103,8 @@ subtítulos, el plan del Día 1 que está en el Drive del usuario: `skill_vlog_d
 
 ### Estilo acordado con el usuario (respetarlo siempre)
 
+0. **Priorizar siempre videos sobre fotos** (vale para los dos estilos): fotos solo si no hay video de ese momento.
+
 1. Vertical 1080x1920. Arranca con título `DÍA N` + frase del día; termina con `FIN DEL DÍA N · Continuará…`.
 2. **Voces completas** en los clips hablados, con subtítulos grandes. Cortar silencios, "eeh" y partes sin interés.
 3. **Mezclar** clips hablando con **tomas artísticas** de los lugares. En las tomas: música sola un poco más
