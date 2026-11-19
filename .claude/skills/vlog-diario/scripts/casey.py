@@ -238,9 +238,16 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
             f"[a{out}]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},gblur=sigma=45,eq=brightness=-0.1[bg{out}];"
             f"[bg{out}][b{out}]overlay=(W-w)/2:0{post},setsar=1,fps=30[{out}]")
 
-def photo_chain(idx, d, out='v', whip_in=False, whip_out=False):
-    c = (f"[{idx}:v]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},"
-         f"scale=w='trunc({CW}*(1+0.06*t/{d})/2)*2':h=-2:eval=frame,crop={CW}:{CH},setsar=1,fps=30,format=yuv420p")
+def photo_chain(idx, d, out='v', whip_in=False, whip_out=False, pan=None):
+    """pan=(y0, y1): en vez del zoom lento, recorre la foto de arriba (0) a abajo (1) -- para fotos verticales en el
+    lienzo horizontal (o al revés), así entran el lugar y las caras (p. ej. el Buda arriba y ellos abajo)."""
+    if pan:
+        y0, y1 = pan
+        c = (f"[{idx}:v]scale={CW}:{CH}:force_original_aspect_ratio=increase,"
+             f"crop={CW}:{CH}:x=(iw-ow)/2:y='(ih-oh)*({y0}+({y1}-{y0})*min(1,t/{d}))',setsar=1,fps=30,format=yuv420p")
+    else:
+        c = (f"[{idx}:v]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},"
+             f"scale=w='trunc({CW}*(1+0.06*t/{d})/2)*2':h=-2:eval=frame,crop={CW}:{CH},setsar=1,fps=30,format=yuv420p")
     if whip_in or whip_out:
         T = 0.2; S = WHIP_S
         xs = (f"(iw-ow)/2+{S}*(-{int(whip_in)}*max(0,({T}-t)/{T})+{int(whip_out)}*max(0,(t-{d - T:.3f})/{T}))")
@@ -272,7 +279,7 @@ def render_talk(out, s, tmpdir):
         else:
             if md['kind'] == 'photo':
                 ins += ['-loop', '1', '-framerate', '30', '-t', f'{d:.3f}', '-i', md['src']]
-                bg = photo_chain(1, d, 'bg', wi, wo)
+                bg = photo_chain(1, d, 'bg', wi, wo, md.get('pan'))
             else:
                 ins += ['-ss', f"{md['i']:.3f}", '-t', f'{d:.3f}', '-i', md['src']]
                 bg = vchain(1, md, d, 'bg', grade=True, push=0.04, whip_in=wi, whip_out=wo, kind='broll')
@@ -315,7 +322,7 @@ def render_photo(out, s):
         af = achain(1, d, 1.0, seg_bleeps(vsrc, st, st + d, st, st + d))
     else:
         ins += ['-f', 'lavfi', '-t', f'{d:.3f}', '-i', 'anullsrc=r=48000:cl=stereo']; af = '[1:a]anull[a]'
-    run(['ffmpeg', '-v', 'error', '-y', *ins, '-filter_complex', photo_chain(0, d, 'v', s['whip_in'], s['whip_out']) + ';' + af,
+    run(['ffmpeg', '-v', 'error', '-y', *ins, '-filter_complex', photo_chain(0, d, 'v', s['whip_in'], s['whip_out'], s.get('pan')) + ';' + af,
          '-map', '[v]', '-map', '[a]', *ENC, '-t', f'{d:.3f}', out])
 
 def render(s, outdir):

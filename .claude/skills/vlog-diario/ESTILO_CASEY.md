@@ -27,6 +27,17 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 - **De lo general al detalle**: en cada lugar, primero la toma general (fachada, panorámica, establecimiento) y después
   los detalles (texturas, comida, carteles, manos). Ordenar el plan así dentro de cada sección.
 - **Sin sonido donde no se habla**: las tomas sin voz van solo con música (`amb=0` por defecto).
+- **Cada toma donde corresponde, no en el orden en que se grabó**: el usuario a veces filma antes o después algo que va
+  en otro momento. Ubicar las tomas por lo que muestran y por lo que se dice: nada de mostrar un lugar antes de que lo
+  nombren (p. ej. el Buda de lejos va cuando dicen "vamos a ver un Buda gigante", con `overlays` en esa frase), y las
+  tomas de afuera de un edificio van en la llegada aunque se hayan filmado a la salida. Mirar las tomas del final del
+  día con esa duda antes de usarlas como "vuelta al hotel".
+- **Nada que no sume a la historia**: fotos sueltas sin relación (p. ej. la pileta del hotel un día sin pileta) se van.
+- **Fotos verticales en el lienzo horizontal**: si hay gente y lugar (el Buda arriba, ellos abajo), usar
+  `photo(..., d=3.4, pan=(0.0, 0.7))`, que baja de arriba hacia las caras; ajustar el final para que las caras queden
+  enteras. Nunca dejar la foto recortada al medio si las caras quedan afuera.
+- **Música distinta cada día**: `music_hiphop.py SALIDA.wav SEGUNDOS N` con `N` = número del día (variante 0 = la pista
+  de los Días 1 y 2). Siempre 90 BPM.
 - **Cambios de escena en el beat**: todo segmento dura un múltiplo exacto del pulso (90 BPM = 0,667 s), también los
   clips hablados (`build()` los ajusta), la música corre continua y el concat usa duraciones exactas: cada corte cae en
   un beat.
@@ -91,7 +102,7 @@ casey.build(PLAN, 'dia2_casey', os.environ['VLOG_WS'] + '/Dia2_casey.mp4')
 
 Música (una vez por sesión):
 ```bash
-/opt/vlog-venv/bin/python -I $K/music_hiphop.py $VLOG_WS/hh_raw.wav 1200 && \
+/opt/vlog-venv/bin/python -I $K/music_hiphop.py $VLOG_WS/hh_raw.wav 1200 <número del día> && \
 ffmpeg -v error -y -i $VLOG_WS/hh_raw.wav -af "loudnorm=I=-16:TP=-1.5" -ar 48000 $VLOG_WS/music_hiphop.wav
 ```
 La página del celular se arma igual (`publish_prep.py` detecta que es horizontal).
