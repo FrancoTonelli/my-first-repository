@@ -25,8 +25,17 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
   se bipean las malas palabras. Si dos clips dicen casi lo mismo, van los dos (uno atrás del otro).
 - **Nada de tomas parecidas repetidas**: si los dos celulares filmaron lo mismo (mismo mostrador, misma calle), usar una
   sola de las dos (la otra, como mucho, para tapar un tramo feo).
-- **Tomas cinematográficas cortas**: no poner las tomas enteras; `broll()` usa por defecto el mejor tramo limpio de hasta
-  6 pulsos (4 s). Solo `max_beats=None` (o más pulsos) en tomas que de verdad lo merecen.
+- **Tomas cortas pero nunca cortadas a la mitad**: `broll()` deja cada toma en ~5 s (`max_beats=6` + 2 pulsos). Si
+  el tramo limpio es más largo, la ACELERA (hasta x2.5) para que entre el movimiento completo (paneo, revelación,
+  caminata), en vez de cortar a la mitad (pedido del usuario: muchas tomas de más de 5 s quedaban cortadas y se perdía
+  lo importante, p. ej. la estatua al final del paneo). `fit='cut'` solo para tomas quietas; `max_beats=None` para
+  dejarla entera a velocidad normal.
+- **No dejar afuera lo importante del lugar**: antes de renderizar, repasar la lista de clips sin usar y las fotos.
+  Cada atracción principal (la estatua gigante, el templo) tiene que verse al menos una vez; las fotos de ellos dos en
+  un lugar donde no hay video juntos van siempre (con `pan` si son verticales).
+- **Charlas con ruido**: si la transcripción casi no tiene palabras de un clip donde se ve que hablan (música, mercado),
+  `jump()` lo puede dejar en nada: usar `talk(clave, 0, fin)` entero. Después de armar el plan, comparar lo que queda de
+  cada charla contra su largo y revisar las que perdieron más de un 15 %.
 - **De lo general al detalle**: en cada lugar, primero la toma general (fachada, panorámica, establecimiento) y después
   los detalles (texturas, comida, carteles, manos). Ordenar el plan así dentro de cada sección.
 - **Sin sonido donde no se habla**: las tomas sin voz van solo con música (`amb=0` por defecto).

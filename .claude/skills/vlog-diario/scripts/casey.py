@@ -151,17 +151,30 @@ def good_window(src, i, o, need=None):
         t = max(t, b)
     return best if best[1] - best[0] >= 0.6 else (i, o)
 
-def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.0, quantize=True, clean=True, max_beats=6, **kw):
+def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.0, quantize=True, clean=True, max_beats=6, fit='speed', **kw):
     """Toma de lugar. o=None -> usa hasta el final útil. speed>1 = hyperlapse (dura (o-i)/speed).
     vo=(clave, t) pone la voz de ese clip de fondo. Sin vo, la toma va SIN sonido (solo música; amb>0 para dejar ambiente).
-    Las tomas se acortan solas a su mejor tramo limpio de hasta `max_beats` pulsos (6 = 4 s); max_beats=None la deja
-    entera (solo para tomas que valen la pena largas). La duración siempre es un múltiplo del pulso (cortes en el beat)."""
+    Las tomas duran como mucho `max_beats` pulsos (6 = 4 s) + 2. Si el tramo limpio es más largo, por defecto
+    (fit='speed') se ACELERA para que entre el movimiento completo (paneo, revelación, caminata) -- nunca se corta una
+    toma a la mitad del movimiento (pedido del usuario); hasta x2.5, y si es todavía más larga se usa el primer tramo que
+    entra a x2.5. fit='cut' recorta al primer tramo (para tomas quietas). max_beats=None la deja entera a velocidad normal.
+    La duración siempre es un múltiplo del pulso (cortes en el beat)."""
     src = f(p)
     if o is None: o = dur(src) - 0.05
     if clean and speed == 1 and not vo:
-        need = max_beats * BEAT if max_beats else None
-        a, b = good_window(src, i, o, need)
-        i, o = a, (min(b, a + need) if need else b)
+        if max_beats and fit == 'speed':
+            a, b = good_window(src, i, o, None)
+            target = (max_beats + 2) * BEAT
+            L = b - a
+            if L > target:
+                speed = round(min(2.5, L / target), 3)
+                kw.setdefault('stab', False)   # aceleración para que entre la toma, no hyperlapse: sin deshake
+                b = a + min(L, target * 2.5)
+            i, o = a, b
+        else:
+            need = max_beats * BEAT if max_beats else None
+            a, b = good_window(src, i, o, need)
+            i, o = a, (min(b, a + need) if need else b)
     elif max_beats and speed == 1 and not vo and o - i > max_beats * BEAT:
         o = i + max_beats * BEAT
     d = (o - i) / speed
@@ -213,7 +226,7 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
             mode = 'band' if portrait else 'fill'
     by = m.get('band_y', 0.5 if kind == 'broll' else 0.32)   # en clips hablados la cara suele estar arriba
     post = []
-    if speed > 1.5:
+    if speed > 1.5 and m.get('stab', True):
         post.append('deshake=rx=48:ry=48:edge=mirror')
     if push:
         post.append(f"scale=w='trunc({CW}*(1+{push}*t/{d})/2)*2':h=-2:eval=frame,crop={CW}:{CH}")
