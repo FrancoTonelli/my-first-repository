@@ -31,9 +31,12 @@ if a.video:   # cortar del final ya mezclado (subtítulos, música y bip incluid
                     '-bufsize', f'{int(vbr*2.8)}k', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
                     '-c:a', 'aac', '-b:a', '160k', mob], check=True)
 else:
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{B}/concat.mp4', '-i', f'{B}/music_env.wav', '-filter_complex',
-                    f"[0:v]ass={B}/subs.ass,trim=start={A0}:end={A1},setpts=PTS-STARTPTS[v];[0:a]loudnorm=I=-16:TP=-2:LRA=9[d];"
-                    f"[d][1:a]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.89,atrim=start={A0}:end={A1},asetpts=PTS-STARTPTS[a]", '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'medium',
+    import os as _os   # la voz va aparte (voice.wav, sincronizada muestra por muestra); concat.mp4 viejos traen el audio adentro
+    _v = ['-i', f'{B}/voice.wav'] if _os.path.exists(f'{B}/voice.wav') else []
+    _va, _ma = ('[1:a]', '[2:a]') if _v else ('[0:a]', '[1:a]')
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{B}/concat.mp4', *_v, '-i', f'{B}/music_env.wav', '-filter_complex',
+                    f"[0:v]ass={B}/subs.ass,trim=start={A0}:end={A1},setpts=PTS-STARTPTS[v];{_va}loudnorm=I=-16:TP=-2:LRA=9[d];"
+                    f"[d]{_ma}amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.89,atrim=start={A0}:end={A1},asetpts=PTS-STARTPTS[a]", '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'medium',
                     '-b:v', f'{vbr}k', '-maxrate', f'{int(vbr*1.8)}k', '-bufsize', f'{int(vbr*2.8)}k', '-profile:v', 'high',
                     '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '160k', mob], check=True)
 for old in glob.glob(f'{a.out}/part*.mp4'): os.remove(old)

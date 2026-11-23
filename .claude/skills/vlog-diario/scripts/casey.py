@@ -477,9 +477,24 @@ def build(plan, name, final, music=None):
     wo.writeframes((mus * 32767).astype(np.int16).tobytes()); wo.close()
     open(f'{outdir}/list.txt', 'w').write(''.join(f"file '{p}'\noutpoint {seg_len(s):.4f}\nduration {seg_len(s):.4f}\n"
                                                 for p, s in zip(files, plan)))
-    run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', f'{outdir}/list.txt', '-c', 'copy', f'{outdir}/concat.mp4'])
-    run(['ffmpeg', '-v', 'error', '-y', '-i', f'{outdir}/concat.mp4', '-i', f'{outdir}/music_env.wav', '-filter_complex',
-         f"[0:v]ass={outdir}/subs.ass[v];[0:a]loudnorm=I=-16:TP=-2:LRA=9[d];[d][1:a]amix=inputs=2:normalize=0:duration=first,"
+    # VIDEO: concat sin audio. AUDIO: se arma aparte, muestra por muestra, cada segmento recortado/rellenado a su
+    # duración exacta. (Concatenar el AAC con -c copy suma el relleno del codificador de cada segmento y la voz se
+    # va atrasando respecto de la imagen: el usuario lo notó como "delay" en las charlas.)
+    run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', f'{outdir}/list.txt', '-an', '-c', 'copy',
+         f'{outdir}/concat.mp4'])
+    SR = 48000; chunks = []
+    for p, s in zip(files, plan):
+        n = int(round(seg_len(s) * SR))
+        raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', p, '-vn', '-ac', '2', '-ar', str(SR), '-f', 's16le', '-'],
+                             capture_output=True).stdout
+        a = np.frombuffer(raw, np.int16).reshape(-1, 2)[:n]
+        if len(a) < n: a = np.concatenate([a, np.zeros((n - len(a), 2), np.int16)])
+        chunks.append(a)
+    wv = wave.open(f'{outdir}/voice.wav', 'wb'); wv.setnchannels(2); wv.setsampwidth(2); wv.setframerate(SR)
+    wv.writeframes(np.concatenate(chunks).tobytes()); wv.close()
+    run(['ffmpeg', '-v', 'error', '-y', '-i', f'{outdir}/concat.mp4', '-i', f'{outdir}/voice.wav', '-i', f'{outdir}/music_env.wav',
+         '-filter_complex',
+         f"[0:v]ass={outdir}/subs.ass[v];[1:a]loudnorm=I=-16:TP=-2:LRA=9[d];[d][2:a]amix=inputs=2:normalize=0:duration=first,"
          f"alimiter=limit=0.89[a]", '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
          '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '160k', final])
     print('done', final, round(dur(final), 2))
