@@ -15,11 +15,12 @@ ap.add_argument('--end', type=float, help='segundo final')
 ap.add_argument('--part', default='', help='etiqueta de la parte, p. ej. "Parte 1"')
 ap.add_argument('--video', help='video final ya exportado por build(); con --start/--end conviene cortar de acá (más robusto)')
 a = ap.parse_args()
-B = f'{a.ws}/build_{a.build}'; os.makedirs(a.out, exist_ok=True)
-dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f'{B}/concat.mp4'],
+B = f'{a.ws}/build_{a.build}'; os.makedirs(a.out, exist_ok=True); os.makedirs(B, exist_ok=True)
+REF = a.video or f'{B}/concat.mp4'   # con --video no hace falta la carpeta build (se puede borrar para liberar disco)
+dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', REF],
                            capture_output=True, text=True).stdout)
 vw, vh = map(int, subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
-                                  '-of', 'csv=p=0', f'{B}/concat.mp4'], capture_output=True, text=True).stdout.strip().split(','))
+                                  '-of', 'csv=p=0', REF], capture_output=True, text=True).stdout.strip().split(',')[:2])
 landscape = vw > vh
 A0 = a.start or 0.0; A1 = a.end or dur
 dur = A1 - A0
