@@ -25,11 +25,11 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
   se bipean las malas palabras. Si dos clips dicen casi lo mismo, van los dos (uno atrás del otro).
 - **Nada de tomas parecidas repetidas**: si los dos celulares filmaron lo mismo (mismo mostrador, misma calle), usar una
   sola de las dos (la otra, como mucho, para tapar un tramo feo).
-- **Tomas cortas pero nunca cortadas a la mitad**: `broll()` deja cada toma en ~5 s (`max_beats=6` + 2 pulsos). Si
-  el tramo limpio es más largo, la ACELERA (hasta x2.5) para que entre el movimiento completo (paneo, revelación,
-  caminata), en vez de cortar a la mitad (pedido del usuario: muchas tomas de más de 5 s quedaban cortadas y se perdía
-  lo importante, p. ej. la estatua al final del paneo). `fit='cut'` solo para tomas quietas; `max_beats=None` para
-  dejarla entera a velocidad normal.
+- **Tomas a velocidad normal, elegidas a mano**: el usuario NO quiere escenas aceleradas. Cada toma dura como mucho
+  ~5 s (`max_beats=8`); para las tomas largas, mirar la hoja de fotogramas y poner en el plan el tramo (i, o) donde está
+  lo importante (la revelación, el elefante, la cara), para no cortar a la mitad de lo que se quiere mostrar. Si hay
+  demasiadas tomas parecidas, SACAR las que sobran en vez de acelerar. Hyperlapse (`speed>1`) solo en un traslado
+  puntual y si suma; nunca como forma de "hacer entrar" una toma.
 - **No dejar afuera lo importante del lugar**: antes de renderizar, repasar la lista de clips sin usar y las fotos.
   Cada atracción principal (la estatua gigante, el templo) tiene que verse al menos una vez; las fotos de ellos dos en
   un lugar donde no hay video juntos van siempre (con `pan` si son verticales).

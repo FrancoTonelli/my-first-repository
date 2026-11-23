@@ -151,13 +151,13 @@ def good_window(src, i, o, need=None):
         t = max(t, b)
     return best if best[1] - best[0] >= 0.6 else (i, o)
 
-def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.0, quantize=True, clean=True, max_beats=6, fit='speed', **kw):
+def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.0, quantize=True, clean=True, max_beats=8, fit='cut', **kw):
     """Toma de lugar. o=None -> usa hasta el final útil. speed>1 = hyperlapse (dura (o-i)/speed).
     vo=(clave, t) pone la voz de ese clip de fondo. Sin vo, la toma va SIN sonido (solo música; amb>0 para dejar ambiente).
-    Las tomas duran como mucho `max_beats` pulsos (6 = 4 s) + 2. Si el tramo limpio es más largo, por defecto
-    (fit='speed') se ACELERA para que entre el movimiento completo (paneo, revelación, caminata) -- nunca se corta una
-    toma a la mitad del movimiento (pedido del usuario); hasta x2.5, y si es todavía más larga se usa el primer tramo que
-    entra a x2.5. fit='cut' recorta al primer tramo (para tomas quietas). max_beats=None la deja entera a velocidad normal.
+    Las tomas van a VELOCIDAD NORMAL y duran como mucho `max_beats` pulsos (8 = 5,3 s): se usa el tramo limpio que
+    empieza en `i`, así que el plan elige a mano el mejor pedazo (i, o) de cada toma larga (donde está lo importante).
+    El usuario NO quiere tomas aceleradas: si sobran tomas, se sacan. fit='speed' (acelerar para que entre todo) solo
+    si el usuario lo pide; speed>1 solo para un hyperlapse de traslado puntual. max_beats=None la deja entera.
     La duración siempre es un múltiplo del pulso (cortes en el beat)."""
     src = f(p)
     if o is None: o = dur(src) - 0.05
