@@ -21,8 +21,9 @@ W = vlog.W
 VERTICAL = os.environ.get('VLOG_CANVAS', '').lower() in ('vertical', '9:16', 'v')
 CW, CH = (1080, 1920) if VERTICAL else (1920, 1080)   # VLOG_CANVAS=vertical -> 9:16 con el mismo estilo
 WHIP_W = int(CW * 1.25) // 2 * 2; WHIP_S = int(CW * 0.12)
-BPM = 90
+BPM = float(os.environ.get('VLOG_BPM', 90))   # el tempo de la música (music_funk.py usa 118)
 BEAT = 60 / BPM
+SHOT = 5.33   # duración máxima de una toma (s), sea cual sea el tempo
 ENC = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', '30',
        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2']
 ROT = {'180': 'hflip,vflip,', 'ccw': 'transpose=2,', 'cw': 'transpose=1,', None: ''}
@@ -151,7 +152,7 @@ def good_window(src, i, o, need=None):
         t = max(t, b)
     return best if best[1] - best[0] >= 0.6 else (i, o)
 
-def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.0, quantize=True, clean=True, max_beats=8, fit='cut', **kw):
+def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.0, quantize=True, clean=True, max_beats='auto', fit='cut', **kw):
     """Toma de lugar. o=None -> usa hasta el final útil. speed>1 = hyperlapse (dura (o-i)/speed).
     vo=(clave, t) pone la voz de ese clip de fondo. Sin vo, la toma va SIN sonido (solo música; amb>0 para dejar ambiente).
     Las tomas van a VELOCIDAD NORMAL y duran como mucho `max_beats` pulsos (8 = 5,3 s): se usa el tramo limpio que
@@ -160,6 +161,7 @@ def broll(p, i, o=None, speed=1.0, vo=None, push=0.04, amb=0.0, quantize=True, c
     si el usuario lo pide; speed>1 solo para un hyperlapse de traslado puntual. max_beats=None la deja entera.
     La duración siempre es un múltiplo del pulso (cortes en el beat)."""
     src = f(p)
+    if max_beats == 'auto': max_beats = max(1, round(SHOT / BEAT))
     if o is None: o = dur(src) - 0.05
     if clean and speed == 1 and not vo:
         if max_beats and fit == 'speed':
@@ -222,9 +224,10 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
     if mode == 'auto':   # siempre llenar la pantalla (nunca chiquito en el medio)
         if VERTICAL:     # lienzo vertical: verticales llenan; horizontales hablados enteros a lo ancho; tomas recortadas
             mode = 'fill' if portrait or kind == 'broll' else 'fitw'
-        else:            # lienzo horizontal: verticales -> franja horizontal
-            mode = 'band' if portrait else 'fill'
+        else:            # lienzo horizontal: verticales ENTEROS sobre su fondo desenfocado (pedido del usuario: la franja
+            mode = 'pillar' if portrait else 'fill'   # 'band' recortaba casi la mitad del cuadro); 'band' solo a mano
     by = m.get('band_y', 0.5 if kind == 'broll' else 0.32)   # en clips hablados la cara suele estar arriba
+    if mode == 'pillar': push = 0   # sin zoom: que se vea el cuadro completo
     post = []
     if speed > 1.5 and m.get('stab', True):
         post.append('deshake=rx=48:ry=48:edge=mirror')
@@ -251,10 +254,20 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
             f"[a{out}]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},gblur=sigma=45,eq=brightness=-0.1[bg{out}];"
             f"[bg{out}][b{out}]overlay=(W-w)/2:0{post},setsar=1,fps=30[{out}]")
 
-def photo_chain(idx, d, out='v', whip_in=False, whip_out=False, pan=None):
+def img_portrait(path):
+    r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
+                        '-of', 'csv=p=0', path], capture_output=True, text=True).stdout.strip().split(',')
+    return int(r[1]) > int(r[0])
+
+def photo_chain(idx, d, out='v', whip_in=False, whip_out=False, pan=None, src=None):
     """pan=(y0, y1): en vez del zoom lento, recorre la foto de arriba (0) a abajo (1) -- para fotos verticales en el
     lienzo horizontal (o al revés), así entran el lugar y las caras (p. ej. el Buda arriba y ellos abajo)."""
-    if pan:
+    if src and not VERTICAL and img_portrait(src):   # foto vertical: entera sobre su fondo desenfocado (sin recortar caras)
+        c = (f"[{idx}:v]scale=-2:{CH},split[pa{out}][pb{out}];"
+             f"[pa{out}]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},gblur=sigma=45,eq=brightness=-0.1[pbg{out}];"
+             f"[pb{out}]scale=w='trunc(iw*(1+0.03*t/{d})/2)*2':h=-2:eval=frame[pfg{out}];"
+             f"[pbg{out}][pfg{out}]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=30,format=yuv420p")
+    elif pan:
         y0, y1 = pan
         c = (f"[{idx}:v]scale={CW}:{CH}:force_original_aspect_ratio=increase,"
              f"crop={CW}:{CH}:x=(iw-ow)/2:y='(ih-oh)*({y0}+({y1}-{y0})*min(1,t/{d}))',setsar=1,fps=30,format=yuv420p")
@@ -285,14 +298,14 @@ def render_talk(out, s, tmpdir):
     for n, (kind, a, b, md) in enumerate(pieces):
         d = b - a; pf = f'{tmpdir}/{os.path.basename(out)[:-4]}_p{n}.mp4'
         wi = s['whip_in'] and n == 0; wo = s['whip_out'] and n == len(pieces) - 1
-        af = achain(0, d, 1.0, seg_bleeps(s['src'], s['i'], s['o'], a, b))
+        af = achain(0, d, 1.0, seg_bleeps(s['src'], s['i'], s['o'], a, b) if s.get('bleep', True) else [])   # bleep=False: la transcripción se equivocó
         ins = ['-ss', f'{a:.3f}', '-t', f'{d:.3f}', '-i', s['src']]
         if kind == 'plain':
             vf = vchain(0, s, d, whip_in=wi, whip_out=wo, kind='talk')
         else:
             if md['kind'] == 'photo':
                 ins += ['-loop', '1', '-framerate', '30', '-t', f'{d:.3f}', '-i', md['src']]
-                bg = photo_chain(1, d, 'bg', wi, wo, md.get('pan'))
+                bg = photo_chain(1, d, 'bg', wi, wo, md.get('pan'), md['src'])
             else:
                 ins += ['-ss', f"{md['i']:.3f}", '-t', f'{d:.3f}', '-i', md['src']]
                 bg = vchain(1, md, d, 'bg', grade=True, push=0.04, whip_in=wi, whip_out=wo, kind='broll')
@@ -335,7 +348,7 @@ def render_photo(out, s):
         af = achain(1, d, 1.0, seg_bleeps(vsrc, st, st + d, st, st + d))
     else:
         ins += ['-f', 'lavfi', '-t', f'{d:.3f}', '-i', 'anullsrc=r=48000:cl=stereo']; af = '[1:a]anull[a]'
-    run(['ffmpeg', '-v', 'error', '-y', *ins, '-filter_complex', photo_chain(0, d, 'v', s['whip_in'], s['whip_out'], s.get('pan')) + ';' + af,
+    run(['ffmpeg', '-v', 'error', '-y', *ins, '-filter_complex', photo_chain(0, d, 'v', s['whip_in'], s['whip_out'], s.get('pan'), s['src']) + ';' + af,
          '-map', '[v]', '-map', '[a]', *ENC, '-t', f'{d:.3f}', out])
 
 def render(s, outdir):

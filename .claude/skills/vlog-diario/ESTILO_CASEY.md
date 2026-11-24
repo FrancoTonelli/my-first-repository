@@ -3,9 +3,9 @@
 Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat". Motor: `scripts/casey.py`
 (importa `vlog.py`, así que valen las mismas claves de archivo, transcripciones y bip). Acordado con el usuario:
 
-- **Horizontal 1920x1080** (YouTube). Todo llena la pantalla: los clips verticales se recortan a una franja
-  horizontal (`band`; en clips hablados la franja va arriba, `band_y=0.32`, para no cortar caras; ajustable por
-  segmento con `band_y=`). `mode='pillar'` (vertical chiquito sobre fondo desenfocado) solo si el usuario lo pide.
+- **Horizontal 1920x1080** (YouTube). Los clips y fotos VERTICALES van ENTEROS, centrados sobre su propio fondo
+  desenfocado (`pillar`, automático): el usuario se quejó de que la franja recortada (`band`) dejaba afuera partes
+  importantes del cuadro. `mode='band'` solo a mano, si una toma vertical no tiene nada arriba ni abajo.
 - **Variante vertical** (el usuario la pidió para el Día 1, que tiene mucho material vertical): mismo estilo en
   1080x1920 con `VLOG_CANVAS=vertical` antes de importar `casey`. Los verticales llenan la pantalla, los horizontales
   hablados van enteros a lo ancho sobre su fondo desenfocado (`fitw`) y las tomas horizontales se recortan al centro.
@@ -48,8 +48,18 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 - **Fotos verticales en el lienzo horizontal**: si hay gente y lugar (el Buda arriba, ellos abajo), usar
   `photo(..., d=3.4, pan=(0.0, 0.7))`, que baja de arriba hacia las caras; ajustar el final para que las caras queden
   enteras. Nunca dejar la foto recortada al medio si las caras quedan afuera.
-- **Música distinta cada día**: `music_hiphop.py SALIDA.wav SEGUNDOS N` con `N` = número del día (variante 0 = la pista
-  de los Días 1 y 2). Siempre 90 BPM.
+- **Música con onda y distinta cada día**: el usuario encontró los hip-hop de 90 BPM "todos parecidos". Usar
+  `music_funk.py SALIDA.wav SEGUNDOS N 118` (funk/disco house: bombo en negras, palmas, bajo con slap, acordes cortados,
+  vientos, riff; N = número del día cambia tonalidad, progresión, groove y riff), normalizar a `music_hiphop.wav` y
+  renderizar con `VLOG_BPM=118` para que los cortes caigan en el beat. `music_hiphop.py` queda para días tranquilos.
+- **Fotos: solo las que el usuario dejó en el álbum** (borra las que no le gustan; volver a listar antes de rehacer) y
+  nunca con alguien con los ojos cerrados: recortar las caras (OpenCV Haar, `opencv-python-headless<5` en el venv) y
+  mirarlas antes de elegir.
+- **Bip solo si la palabra es segura**: si al volver a transcribir el tramo no sale la misma mala palabra, no bipear
+  (`bleep=False` en ese clip). El usuario marcó bips puestos sobre palabras normales.
+- **Clips duplicados**: si dos clips seguidos dicen lo mismo (uno se cortó y lo volvieron a grabar), va solo el completo.
+- **Charlas "basura"** (sin contenido, gente hablando de fondo, frases sueltas): si el usuario lo marca, sacarla y
+  reemplazarla por una toma.
 - **Cambios de escena en el beat**: todo segmento dura un múltiplo exacto del pulso (90 BPM = 0,667 s), también los
   clips hablados (`build()` los ajusta), la música corre continua y el concat usa duraciones exactas: cada corte cae en
   un beat.
