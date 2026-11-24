@@ -48,10 +48,12 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 - **Fotos verticales en el lienzo horizontal**: si hay gente y lugar (el Buda arriba, ellos abajo), usar
   `photo(..., d=3.4, pan=(0.0, 0.7))`, que baja de arriba hacia las caras; ajustar el final para que las caras queden
   enteras. Nunca dejar la foto recortada al medio si las caras quedan afuera.
-- **Música con onda y distinta cada día**: el usuario encontró los hip-hop de 90 BPM "todos parecidos". Usar
-  `music_funk.py SALIDA.wav SEGUNDOS N 118` (funk/disco house: bombo en negras, palmas, bajo con slap, acordes cortados,
-  vientos, riff; N = número del día cambia tonalidad, progresión, groove y riff), normalizar a `music_hiphop.wav` y
-  renderizar con `VLOG_BPM=118` para que los cortes caigan en el beat. `music_hiphop.py` queda para días tranquilos.
+- **Música: estilo de la referencia del usuario** (un tema de ~112 BPM en sol# menor: grave profundo, piano eléctrico
+  cálido, melodía sostenida, punteos, percusión suave). Usar `music_chill.py SALIDA.wav SEGUNDOS N 112` (N = número del
+  día cambia tonalidad, progresión, groove y melodía; N=0 queda en sol# menor como la referencia), normalizar a
+  `music_hiphop.wav` y renderizar con `VLOG_BPM=112`. Los hip-hop de 90 BPM le parecieron todos iguales y el funk de
+  `music_funk.py` (118 BPM) fue un paso intermedio. Analizar cualquier referencia nueva con librosa (tempo, tonalidad,
+  bandas, patrón de graves/agudos) antes de tocar el generador.
 - **Priorizar las tomas horizontales**: en el lienzo horizontal, un vertical (aunque vaya entero) se nota mucho. Usar
   verticales solo para las charlas (que van todas) y para momentos que no tienen ninguna toma horizontal o que muestran
   algo único (un primer plano, un detalle). Si el mismo momento está en horizontal, sacar el vertical. Contar los
