@@ -52,6 +52,10 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
   `music_funk.py SALIDA.wav SEGUNDOS N 118` (funk/disco house: bombo en negras, palmas, bajo con slap, acordes cortados,
   vientos, riff; N = número del día cambia tonalidad, progresión, groove y riff), normalizar a `music_hiphop.wav` y
   renderizar con `VLOG_BPM=118` para que los cortes caigan en el beat. `music_hiphop.py` queda para días tranquilos.
+- **Priorizar las tomas horizontales**: en el lienzo horizontal, un vertical (aunque vaya entero) se nota mucho. Usar
+  verticales solo para las charlas (que van todas) y para momentos que no tienen ninguna toma horizontal o que muestran
+  algo único (un primer plano, un detalle). Si el mismo momento está en horizontal, sacar el vertical. Contar los
+  segundos de cada orientación antes de renderizar: la mayor parte tiene que ser horizontal.
 - **Fotos: solo las que el usuario dejó en el álbum** (borra las que no le gustan; volver a listar antes de rehacer) y
   nunca con alguien con los ojos cerrados: recortar las caras (OpenCV Haar, `opencv-python-headless<5` en el venv) y
   mirarlas antes de elegir.
