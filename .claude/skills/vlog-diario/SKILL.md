@@ -1,13 +1,13 @@
 ---
 name: vlog-diario
-description: Arma el video diario del vlog de viaje a Tailandia a partir del álbum compartido de Google Photos "Tailandia 2026" - baja los videos y fotos del día en HD, los transcribe, los edita en vertical 9:16 con el estilo acordado (subtítulos, bip, superposiciones, PiP/chroma, curiosidades, tomas artísticas, bloopers) y publica una página privada para verlo y guardarlo desde el celular. Usar cuando el usuario pida "armá el día N", "sumá lo nuevo del álbum", "editá el video de hoy" o cambios sobre un video del viaje.
+description: Arma el video diario del vlog de viaje a Tailandia a partir de un álbum compartido de Google Photos (uno por día) - baja los videos y fotos en HD, los transcribe, los edita en el estilo acordado (por defecto estilo 2 "Casey", horizontal 16:9; el estilo 1 es vertical 9:16 con subtítulos, PiP/chroma y bloopers) y publica una página privada para verlo y guardarlo desde el celular. Usar cuando el usuario pida "armá el día N", "sumá lo nuevo del álbum", "editá el video de hoy" o cambios sobre un video del viaje.
 ---
 
 # Vlog diario · Tailandia 2026
 
 El usuario (habla en español rioplatense) viaja por Tailandia y sube cada día fotos y videos de su iPhone
 a un álbum compartido de Google Photos. El enlace del álbum está en la variable de entorno
-`VLOG_ALBUM` (configurada en el entorno privado "Tailandia video blog"; si falta, pedírselo al usuario). Quiere un video vertical por día. **Solo usa el celular**: el
+`VLOG_ALBUM` (configurada en el entorno privado "Tailandia video blog"; si falta, pedírselo al usuario). Quiere un video por día; **hoy usa el estilo 2 (Casey, horizontal)** salvo que pida otro. **Solo usa el celular**: el
 resultado se entrega en una página privada (Artifact) con un botón para guardarlo en el teléfono.
 
 ## Dos estilos de edición (preguntar cuál si el usuario no lo dice)
@@ -20,11 +20,23 @@ resultado se entrega en una página privada (Artifact) con un botón para guarda
 Los pasos 0, 1, 2, 4, 5 y 6 son iguales para los dos. Se pueden hacer los dos estilos del mismo día
 (el material, las transcripciones y la caché se comparten).
 
+## Estado del proyecto (leer primero en un chat nuevo)
+
+El estado del viaje (qué días están hechos, links de las páginas publicadas, pendientes y planes de cada día) NO va en
+este repo, que es público: está en el Drive del usuario, en `vlog_estado.md` (buscarlo con Google Drive
+`search_files`), junto a los `plan_diaN*.py`. Leerlo antes de empezar y actualizarlo al terminar cada día.
+
+**Reglas acumuladas del usuario**: están en `ESTILO_CASEY.md` → "Pedidos explícitos del usuario". Resumen de lo más
+reciente: música `music_chill.py` a 112 BPM (`VLOG_BPM=112`), todas las charlas completas y sin censura (bip solo si la
+mala palabra es segura), tomas a velocidad normal y elegidas a mano, priorizar horizontales, nada de fotos con ojos
+cerrados ni de fotos que el usuario borró del álbum, tomas ubicadas por lo que muestran y no por la hora de grabación,
+y verificar la sincronización voz/imagen con `scripts/sync_check.py` antes de publicar.
+
 ## 0. Preparar la sesión (1 minuto)
 
 ```bash
 K=<carpeta de esta skill>/scripts
-bash $K/setup.sh                      # instala ffmpeg + /opt/vlog-venv (whisper, heic, rembg) si falta
+bash $K/setup.sh                      # instala ffmpeg + /opt/vlog-venv (whisper, heic, rembg, opencv, librosa) si falta
 export VLOG_WS=$SCRATCHPAD/vlog_diaN   # carpeta de trabajo del día (usar el scratchpad, no /tmp)
 ```
 
@@ -127,8 +139,13 @@ ffmpeg -v error -y -i $VLOG_WS/music_raw.wav -af "lowpass=f=6000,aecho=0.8:0.5:6
 ## 4. Renderizar y revisar
 
 ```bash
-cd $VLOG_WS && VLOG_WS=$VLOG_WS VLOG_SKILL=$K /opt/vlog-venv/bin/python -I plan_diaN.py
+cd $VLOG_WS && VLOG_BPM=112 VLOG_WS=$VLOG_WS VLOG_SKILL=$K /opt/vlog-venv/bin/python -I plan_diaN.py
+# después, sincronización voz/imagen de cada charla (la columna "voz" tiene que dar ~0,00 s):
+VLOG_BPM=112 VLOG_WS=$VLOG_WS VLOG_SKILL=$K /opt/vlog-venv/bin/python -I $K/sync_check.py plan_diaN.py $VLOG_WS/DiaN.mp4
 ```
+- `VLOG_BPM` tiene que coincidir con el tempo de la música (`music_chill.py` 112, `music_funk.py` 118, hip-hop 90).
+- La voz se arma aparte muestra por muestra (`voice.wav`): antes, concatenar el AAC de cada segmento atrasaba la voz
+  en tramos con muchos cortes. No volver a concatenar el audio con `-c copy`.
 - En background (tarda ~3-4 min por minuto de video; más con chroma). Avisar al usuario mientras tanto.
 - Revisar: sacar ~40 fotogramas repartidos (ffmpeg `-ss`) en una grilla y mirarla con Read. Chequear
   orientación, que los subtítulos no tapen caras, títulos/tarjetas legibles. El audio no se puede escuchar:
@@ -147,6 +164,7 @@ python3 $K/publish_prep.py $VLOG_WS diaN $SCRATCHPAD/pagina_diaN --title 'Templo
 - Publicar con el tool Artifact: primer publish con `file_path=.../index.html`, `root=` la carpeta,
   `capabilities={"downloads": true}`, `icon="video"`, `files` = poster.jpg + part01..04; después tandas de
   ≤4 partes (límite 64 MB por publish) con el mismo `file_path`. Al final, `list scope=files` para verificar.
+- Con `--video` no hace falta la carpeta `build_*`: se puede borrar antes para liberar disco.
 - Una página nueva por día (cada versión de artifact admite ~256 MB). Para rehacer el mismo día, republicar
   en la misma URL (los `partNN` se pisan; si hay menos partes, borrar las sobrantes con `null`).
 - Para encontrar páginas de días anteriores: Artifact `action: "list"`.
