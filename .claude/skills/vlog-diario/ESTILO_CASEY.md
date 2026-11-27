@@ -61,7 +61,10 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
 - **Nada de verticales con barras**: en el lienzo horizontal, TODOS los clips verticales se recortan a horizontal
   (`mode='band', band_y=<0..1>`), eligiendo la altura a mano: sacar 5 alturas (0.2-0.8) en 2 momentos de la toma y
   quedarse con la que muestra lo importante (caras, el animal, la comida). Si el sujeto se mueve mucho, partir el clip
-  con distinta altura por pedazo. Además, priorizar tomas horizontales: si el mismo momento está en horizontal, sacar
+  con distinta altura por pedazo. **Nunca paneo en videos** (pedido del usuario): altura fija por pedazo. El paneo
+  (`band_y=(y0, y1)` en video está disponible pero NO usarlo; `photo(..., pan=(y0, y1))`) es solo para FOTOS
+  verticales que no entran recortadas. Fotos verticales: recortar a horizontal (`pan=(y, y)`, altura fija) si no se
+  pierde nada importante; si se pierde, paneo de arriba a abajo para que se vea toda. Además, priorizar tomas horizontales: si el mismo momento está en horizontal, sacar
   el vertical. (Las fotos verticales quedan enteras con fondo desenfocado o con `pan`.)
 - **Fotos: solo las que el usuario dejó en el álbum** (borra las que no le gustan; volver a listar antes de rehacer) y
   nunca con alguien con los ojos cerrados: recortar las caras (OpenCV Haar, `opencv-python-headless<5` en el venv) y

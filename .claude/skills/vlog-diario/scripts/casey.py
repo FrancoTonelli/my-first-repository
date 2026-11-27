@@ -243,8 +243,13 @@ def vchain(idx, m, d, out='v', grade=False, push=0.0, speed=1.0, whip_in=False, 
     post = (',' + ','.join(post)) if post else ''
     if mode == 'fill':
         return f"[{idx}:v]{sp}{rot}scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH}{tm}{post},setsar=1,fps=30[{out}]"
-    if mode == 'band':  # franja horizontal del medio de una toma vertical
-        return f"[{idx}:v]{sp}{rot}crop=iw:iw*9/16:0:(ih-iw*9/16)*{by},scale={CW}:{CH}{tm}{post},setsar=1,fps=30[{out}]"
+    if mode == 'band':  # franja horizontal de una toma vertical; band_y=(y0, y1) hace un paneo de arriba a abajo
+        if isinstance(by, (tuple, list)):
+            y0, y1 = by
+            yexp = f"'(ih-oh)*({y0}+({y1}-{y0})*min(1,t/{d:.3f}))'"
+        else:
+            yexp = f"(ih-iw*9/16)*{by}"
+        return f"[{idx}:v]{sp}{rot}crop=iw:iw*9/16:0:{yexp},scale={CW}:{CH}{tm}{post},setsar=1,fps=30[{out}]"
     if mode == 'fitw':  # horizontal entero a lo ancho (un poco ampliado) sobre su propio fondo desenfocado
         return (f"[{idx}:v]{sp}{rot}scale={int(CW * 1.15) // 2 * 2}:-2{tm},split[a{out}][b{out}];"
                 f"[a{out}]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},gblur=sigma=45,eq=brightness=-0.1[bg{out}];"
