@@ -38,13 +38,13 @@ def sub(m, length):   # sub-bajo redondo con un poco de saturación
     if k not in _c:
         t = T(length); fr = midi(m)
         env = np.minimum(1, t * 80) * np.clip((length - t) * 20, 0, 1) * (0.75 + 0.25 * np.exp(-t * 3))
-        _c[k] = np.tanh((np.sin(2 * np.pi * fr * t) + 0.25 * np.sin(4 * np.pi * fr * t)) * env * 1.6) * 0.17
+        _c[k] = (np.sin(2 * np.pi * fr * t) + 0.25 * np.sin(4 * np.pi * fr * t)) * env * 0.26   # sin saturar: sin armónicos que choquen
     return _c[k]
 def keys(m, length, vel):   # piano eléctrico cálido (tipo Rhodes)
     k = ('k', m, round(length, 3), vel)
     if k not in _c:
         t = T(length); fr = midi(m)
-        s = np.sin(2 * np.pi * fr * t + 0.8 * np.sin(2 * np.pi * fr * t) * np.exp(-t * 3))
+        s = np.sin(2 * np.pi * fr * t + 0.45 * np.sin(2 * np.pi * fr * t) * np.exp(-t * 4))
         s += 0.2 * np.sin(2 * np.pi * 2 * fr * t) * np.exp(-t * 2)
         env = (1 - np.exp(-t * 200)) * np.exp(-t * 1.1) * np.clip((length - t) * 8, 0, 1)
         _c[k] = s * env * (1 + 0.15 * np.sin(2 * np.pi * 4.5 * t)) * vel
@@ -59,7 +59,7 @@ def pluck(m, length):   # punteo corto y brillante (tipo marimba/kalimba)
     k = ('p', m, round(length, 3))
     if k not in _c:
         t = T(length); fr = midi(m)
-        s = np.sin(2 * np.pi * fr * t) + 0.5 * np.sin(2 * np.pi * 3 * fr * t) * np.exp(-t * 25) + 0.25 * np.sin(2 * np.pi * 5.4 * fr * t) * np.exp(-t * 40)
+        s = np.sin(2 * np.pi * fr * t) + 0.5 * np.sin(2 * np.pi * 3 * fr * t) * np.exp(-t * 25) + 0.2 * np.sin(2 * np.pi * 4 * fr * t) * np.exp(-t * 40)
         _c[k] = s * (1 - np.exp(-t * 900)) * np.exp(-t * 9) * 0.13
     return _c[k]
 def lead(m, length):   # línea melódica sostenida, tipo flauta/sintetizador suave, con vibrato
@@ -71,8 +71,10 @@ def lead(m, length):   # línea melódica sostenida, tipo flauta/sintetizador su
 
 KEY = 44 + ([0, -2, 3, -4, 5, 2][VAR % 6] if VAR else 0)          # sol#2 por defecto (como la referencia)
 NAT = [0, 2, 3, 5, 7, 8, 10]                     # menor natural: acordes diatónicos (sin notas fuera de la tonalidad)
-def chord_of(d):   # grado (0-6) -> notas del acorde por terceras dentro de la escala, relativas a la tónica
-    return [NAT[(d + 2 * j) % 7] + 12 * ((d + 2 * j) // 7) for j in range(4)]
+def chord_of(d):   # grado (0-6) -> TRÍADA (raíz, tercera, quinta) dentro de la escala, relativa a la tónica.
+    # Sin séptimas: la séptima mayor de VI/III queda a un semitono de la raíz y suena áspera.
+    t = [NAT[(d + 2 * j) % 7] + 12 * ((d + 2 * j) // 7) for j in range(3)]
+    return t + [t[0] + 12]
 PROGS = [[0, 5, 2, 6], [0, 3, 5, 4], [0, 6, 5, 2], [0, 2, 6, 5], [0, 5, 6, 3], [0, 4, 5, 6]]
 progA = PROGS[VAR % 6]; progB = PROGS[(VAR + 2) % 6]
 MIN = [0, 3, 7, 10, 14]
@@ -81,8 +83,8 @@ rr = np.random.default_rng(900 + VAR)
 def phrase():   # frase de 2 compases: notas largas, pocas, que respiran
     out = []; pos = 0
     while pos < 32:
-        ln = int(rr.choice([4, 6, 8, 12])); deg = int(rr.integers(2, 9))
-        if rr.random() < 0.8: out.append((pos, SCALE[deg], ln))
+        ln = int(rr.choice([4, 6, 8, 12])); deg = int(rr.integers(0, 5))   # 0-4: raíz, 3a, 5a, raíz+8va, 3a+8va
+        if rr.random() < 0.8: out.append((pos, deg, ln))
         pos += ln
     return out
 MEL = [phrase(), phrase()]
@@ -107,7 +109,7 @@ while t < dur + bar:
     for h in PERC: add(rim(), t + h * s16, pan=0.2)
     if sec == 3:
         for h, m in [(6, 52), (10, 49), (15, 47)]: add(tom(m), t + h * s16, pan=-0.4)
-    BMAP = {0: 0, 5: CH[1] - CH[0], 7: CH[2] - CH[0], 10: CH[3] - CH[0], 12: 12}   # grados del bajo dentro del acorde
+    BMAP = {0: 0, 5: CH[2] - CH[0], 7: CH[2] - CH[0], 10: 12, 12: 12}   # bajo: raíz, quinta u octava
     for h, deg, ln in BASS: add(sub(root - 12 + BMAP[deg], ln * s16 * 0.95), t + h * s16)
     if k % 2 == 0:
         ch = [KEY + 12 + x for x in CH] + [KEY + 24 + CH[0]]
@@ -115,19 +117,20 @@ while t < dur + bar:
         for idx, m in enumerate(ch[:3]): add(keys(m + 12, beat * 1.5, 0.30), t + 2 * s16 + idx * 0.012, pan=-0.2)
         for idx, m in enumerate(ch[:3]): add(keys(m + 12, beat * 1.2, 0.24), t + bar + 10 * s16 + idx * 0.012, pan=-0.2)
         if sec in (1, 3):
+            tones = [CH[0], CH[1], CH[2], CH[0] + 12, CH[1] + 12]
             for p, deg, ln in MEL[(k // 2) % 2]:
-                add(lead(KEY + 24 + deg, ln * s16 * 0.97), t + p * s16, pan=0.15)
+                add(lead(KEY + 24 + tones[deg], min(ln, 32 - p) * s16 * 0.97), t + p * s16, pan=0.15)   # no pisa el acorde siguiente
     if k >= 2:
-        c0 = [x - CH[0] for x in CH]; arp = [root + 24 + x for x in (0, c0[2], 12, 12 + c0[1], c0[3], c0[2], c0[1], c0[2])]
+        c0 = [x - CH[0] for x in CH]; arp = [root + 24 + x for x in (0, c0[2], 12, 12 + c0[1], 12 + c0[2], 12, c0[2], c0[1])]
         for h in range(8):
             add(pluck(arp[h], s16 * 1.8), t + h * 2 * s16 + (0.05 * s16 if h % 2 else 0), pan=0.35 * (1 if h % 2 else -1), gain=0.9 if h % 2 == 0 else 0.6)
     t += bar; k += 1
 # eco suave (corchea con puntillo) para que suene más amplio
 d = int(SR * beat * 0.75)
-for C, g in ((L, 0.22), (R, 0.26)):
-    e = np.zeros_like(C); e[d:] = C[:-d] * g; e[2 * d:] += C[:-2 * d] * g * 0.5; C += e
+for C, g in ((L, 0.10), (R, 0.12)):
+    e = np.zeros_like(C); e[d:] = C[:-d] * g; C += e
 st = np.stack([L, R], 1)[:int(SR * dur)]
 st[:int(SR * 0.02)] *= np.linspace(0, 1, int(SR * 0.02))[:, None]
-st = np.tanh(st / np.max(np.abs(st)) * 1.3) / np.tanh(1.3) * 0.9
+st = st / np.max(np.abs(st)) * 0.89
 w = wave.open(sys.argv[1], 'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
 w.writeframes((st * 32767).astype(np.int16).tobytes()); w.close()

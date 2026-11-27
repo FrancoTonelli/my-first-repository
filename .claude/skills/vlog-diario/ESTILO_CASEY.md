@@ -53,7 +53,11 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
   `music_from_track.py CANCION.mp3 SALIDA.wav SEGUNDOS 112`: lo estira apenas al BPM entero, lo pone en fase con el
   pulso y lo repite empalmando cada 4 compases; normalizar a `music_hiphop.wav` y renderizar con `VLOG_BPM=112`.
   Si el celular sube el archivo vacío (`.mp3.download`, 0 bytes), pedirle que espere a que termine de bajar.
-  Sin canción del usuario: `music_chill.py` (112 BPM) como base, y pedirle un tema.
+  Sin canción del usuario, o si pide "la música hecha por vos": `music_chill.py SALIDA.wav SEGUNDOS <día> 112`.
+  **Nada disonante** (pedido del usuario): todas las voces tocan solo notas de la tríada que suena (melodía, bajo,
+  arpegio, acordes), sin séptimas, sin parciales inarmónicos, sin saturar la mezcla, y el eco es corto para no
+  arrastrar el acorde anterior. Si se toca el generador, medir con un chroma por ventana de acorde que la energía
+  fuera del acorde no suba (sin batería: ~25 %, el resto son armónicos naturales).
 - **Nada de verticales con barras**: en el lienzo horizontal, TODOS los clips verticales se recortan a horizontal
   (`mode='band', band_y=<0..1>`), eligiendo la altura a mano: sacar 5 alturas (0.2-0.8) en 2 momentos de la toma y
   quedarse con la que muestra lo importante (caras, el animal, la comida). Si el sujeto se mueve mucho, partir el clip
