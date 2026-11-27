@@ -265,9 +265,10 @@ def img_portrait(path):
     return int(r[1]) > int(r[0])
 
 def photo_chain(idx, d, out='v', whip_in=False, whip_out=False, pan=None, src=None):
-    """pan=(y0, y1): en vez del zoom lento, recorre la foto de arriba (0) a abajo (1) -- para fotos verticales en el
-    lienzo horizontal (o al revés), así entran el lugar y las caras (p. ej. el Buda arriba y ellos abajo)."""
-    if src and not VERTICAL and img_portrait(src):   # foto vertical: entera sobre su fondo desenfocado (sin recortar caras)
+    """pan=(y0, y1): recorta la foto a pantalla completa y la recorre de arriba (0) a abajo (1); pan=(y, y) es un
+    recorte fijo a esa altura. Para fotos verticales en el lienzo horizontal: recorte fijo si entra lo importante,
+    paneo si no. Sin pan, una foto vertical va entera sobre su fondo desenfocado."""
+    if src and not VERTICAL and img_portrait(src) and not pan:   # foto vertical sin pan: entera sobre fondo desenfocado
         c = (f"[{idx}:v]scale=-2:{CH},split[pa{out}][pb{out}];"
              f"[pa{out}]scale={CW}:{CH}:force_original_aspect_ratio=increase,crop={CW}:{CH},gblur=sigma=45,eq=brightness=-0.1[pbg{out}];"
              f"[pb{out}]scale=w='trunc(iw*(1+0.03*t/{d})/2)*2':h=-2:eval=frame[pfg{out}];"
