@@ -27,7 +27,8 @@ este repo, que es público: está en el Drive del usuario, en `vlog_estado.md` (
 `search_files`), junto a los `plan_diaN*.py`. Leerlo antes de empezar y actualizarlo al terminar cada día.
 
 **Reglas acumuladas del usuario**: están en `ESTILO_CASEY.md` → "Pedidos explícitos del usuario". Resumen de lo más
-reciente: música `music_chill.py` a 112 BPM (`VLOG_BPM=112`), todas las charlas completas y sin censura (bip solo si la
+reciente: música = la canción que pasa el usuario con `music_from_track.py` (si no, `music_chill.py`; `VLOG_BPM=112`),
+verticales recortados a horizontal con la altura elegida a mano, todas las charlas completas y sin censura (bip solo si la
 mala palabra es segura), tomas a velocidad normal y elegidas a mano, priorizar horizontales, nada de fotos con ojos
 cerrados ni de fotos que el usuario borró del álbum, tomas ubicadas por lo que muestran y no por la hora de grabación,
 y verificar la sincronización voz/imagen con `scripts/sync_check.py` antes de publicar.
