@@ -64,7 +64,11 @@ Se usa cuando el usuario pide "estilo Casey", "estilo 2" o "como Casey Neistat".
   con distinta altura por pedazo. **Nunca paneo en videos** (pedido del usuario): altura fija por pedazo. El paneo
   (`band_y=(y0, y1)` en video está disponible pero NO usarlo; `photo(..., pan=(y0, y1))`) es solo para FOTOS
   verticales que no entran recortadas. Fotos verticales: recortar a horizontal (`pan=(y, y)`, altura fija) si no se
-  pierde nada importante; si se pierde, paneo de arriba a abajo para que se vea toda. Además, priorizar tomas horizontales: si el mismo momento está en horizontal, sacar
+  pierde nada importante; si se pierde, paneo de arriba a abajo para que se vea toda. El paneo TERMINA en el encuadre
+  que importa (los dos de cuerpo entero, o cara + anillo), no en el borde de abajo: renderizar la foto sola y mirar el
+  cuadro inicial, el del medio y el final antes del render completo. El usuario marcó fotos donde "solo se ven las
+  cabezas". Video vertical muy angosto (p. ej. 816x1920): el recorte deja una franja con cabezas; si existe la misma
+  acción en horizontal, usar esa; si no, que vaya entero. Además, priorizar tomas horizontales: si el mismo momento está en horizontal, sacar
   el vertical. (Las fotos verticales quedan enteras con fondo desenfocado o con `pan`.)
 - **Fotos: solo las que el usuario dejó en el álbum** (borra las que no le gustan; volver a listar antes de rehacer) y
   nunca con alguien con los ojos cerrados: recortar las caras (OpenCV Haar, `opencv-python-headless<5` en el venv) y
